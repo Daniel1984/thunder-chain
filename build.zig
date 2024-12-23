@@ -87,14 +87,20 @@ pub fn build(b: *std.Build) void {
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     // MINE
+    const sqlite = b.dependency("sqlite", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("sqlite", sqlite.module("sqlite"));
+
     const sqlite_module = b.addModule("sqlite-service", .{
         .root_source_file = b.path("src/modules/sqlite.zig"),
-        // .imports = &.{
-        //     .{
-        //         .name = "sqlite",
-        //         .module = sqlite.module("sqlite"),
-        //     },
-        // },
+        .imports = &.{
+            .{
+                .name = "sqlite",
+                .module = sqlite.module("sqlite"),
+            },
+        },
     });
 
     // Add a specific step for mempool tests
