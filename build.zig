@@ -37,8 +37,8 @@ pub fn build(b: *std.Build) void {
     });
 
     // Add SQLite library
-    exe.linkLibC();
-    exe.linkSystemLibrary("sqlite3");
+    // exe.linkLibC();
+    // exe.linkSystemLibrary("sqlite3");
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -103,6 +103,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    const transaction_module = b.addModule("transaction", .{
+        .root_source_file = b.path("src/transaction.zig"),
+    });
+
     // Add a specific step for mempool tests
     const mempool_tests = b.addTest(.{
         .root_source_file = b.path("src/mempool-service/mempool_test.zig"),
@@ -110,9 +114,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     mempool_tests.root_module.addImport("sqlite-service", sqlite_module);
+    mempool_tests.root_module.addImport("transaction", transaction_module);
 
     // mempool_tests.root_module.addImport("sqlite", sqlite.module("sqlite"));
-    mempool_tests.linkSystemLibrary("sqlite3");
+    // mempool_tests.linkSystemLibrary("sqlite3");
     const run_mempool_tests = b.addRunArtifact(mempool_tests);
 
     // Create a specific step for mempool tests
