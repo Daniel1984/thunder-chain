@@ -11,7 +11,6 @@ test "MemPool - initialization" {
     defer pool.deinit();
 
     try testing.expectEqual(@as(usize, 1000), pool.max_size);
-    // try testing.expectEqual(@as(usize, 0), pool.transactions.count());
 }
 
 test "MemPool - initialization with 0 max_size" {

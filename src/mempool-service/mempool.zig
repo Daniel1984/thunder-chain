@@ -24,8 +24,8 @@ pub const MemPool = struct {
 
         var db = try SqliteService.init("./test.db");
 
-        try db.exec("CREATE TABLE IF NOT EXISTS mempool(id BLOB PRIMARY KEY, fee INTEGER NOT NULL, timestamp INTEGER NOT NULL, tx_data BLOB NOT NULL)");
-        try db.exec("CREATE INDEX IF NOT EXISTS idx_mempool_fee ON mempool(fee DESC)");
+        try db.exec("CREATE TABLE IF NOT EXISTS mempool(id BLOB PRIMARY KEY, fee INTEGER NOT NULL, timestamp INTEGER NOT NULL, tx_data BLOB NOT NULL)", .{}, .{});
+        try db.exec("CREATE INDEX IF NOT EXISTS idx_mempool_fee ON mempool(fee DESC)", .{}, .{});
 
         return .{
             .allocator = allocator,
