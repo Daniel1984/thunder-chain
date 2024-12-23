@@ -6,22 +6,27 @@ pub const TransactionError = error{
     InvalidSignature,
     InvalidPublicKey,
     SigningError,
+    InvalidDataLength,
 };
 
 pub const Transaction = struct {
     from: [32]u8, // Sender's public key
     to: [32]u8, // Recipient's public key
     amount: u64,
+    fee: u64,
     signature: [64]u8, // Ed25519 signature
     timestamp: i64,
+    expires: i64,
 
     pub fn init(from: [32]u8, to: [32]u8, amount: u64) Transaction {
         return Transaction{
             .from = from,
             .to = to,
             .amount = amount,
+            .fee = 0,
             .signature = [_]u8{0} ** 64,
             .timestamp = std.time.timestamp(),
+            .expires = 0,
         };
     }
 

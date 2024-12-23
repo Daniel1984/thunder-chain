@@ -46,10 +46,6 @@ test "Transaction - hash calculation" {
 test "Transaction - signing with valid key" {
     // Generate keypair
     const kp = try Ed25519.KeyPair.create(null);
-    std.debug.print("KeyPair - Public key: {any}, \n Secret key: {any}\n", .{
-        kp.public_key.bytes,
-        kp.secret_key.bytes,
-    });
 
     // Create transaction with correct public key
     var tx = Transaction.init(kp.public_key.bytes, [_]u8{2} ** 32, 1000);

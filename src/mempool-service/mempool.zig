@@ -1,6 +1,6 @@
 const std = @import("std");
 const SqliteService = @import("sqlite-service").SqliteService;
-const Transaction = @import("../transaction.zig").Transaction;
+const Transaction = @import("transaction").Transaction;
 const Allocator = std.mem.Allocator;
 
 pub const MempoolError = error{
@@ -24,8 +24,21 @@ pub const MemPool = struct {
 
         var db = try SqliteService.init("./test.db");
 
-        try db.exec("CREATE TABLE IF NOT EXISTS mempool(id BLOB PRIMARY KEY, fee INTEGER NOT NULL, timestamp INTEGER NOT NULL, tx_data BLOB NOT NULL)", .{}, .{});
+        try db.exec(
+            \\CREATE TABLE IF NOT EXISTS mempool(
+            \\    id BLOB PRIMARY KEY,
+            \\    from_addr BLOB PRIMARY KEY,
+            \\    to_addr BLOB PRIMARY KEY,
+            \\    signature BLOB PRIMARY KEY,
+            \\    fee INTEGER NOT NULL,
+            \\    amount INTEGER NOT NULL,
+            \\    timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            \\    expires INTEGER NOT NULL DEFAULT (strftime('%s', 'now') + 1500)
+            \\)
+        , .{}, .{});
+
         try db.exec("CREATE INDEX IF NOT EXISTS idx_mempool_fee ON mempool(fee DESC)", .{}, .{});
+        try db.exec("CREATE INDEX IF NOT EXISTS idx_mempool_expires ON mempool(expires)", .{}, .{});
 
         return .{
             .allocator = allocator,
@@ -40,12 +53,30 @@ pub const MemPool = struct {
     }
 
     pub fn addTransaction(self: *MemPool, tx: Transaction) !void {
-        // Add to in-memory map
         const tx_hash = try tx.calculateHash();
-        try self.transactions.put(tx_hash, tx);
 
-        // Persist to SQLite
-        try self.db.exec("INSERT INTO mempool (hash, tx_data) VALUES (?, ?)", .{ tx_hash, tx.serialize() });
+        std.debug.print("Adding transaction with hash: {s}\n", .{std.fmt.fmtSliceHexLower(tx_hash[0..])});
+
+        const query =
+            \\INSERT INTO mempool 
+            \\(id, from_addr, to_addr, signature, fee, amount) 
+            \\VALUES 
+            \\(:id, :from_addr, :to_addr, :signature, :fee, :amount)
+        ;
+
+        var stmt = try self.db.db.prepare(query);
+        defer stmt.deinit();
+
+        try stmt.exec(.{}, .{
+            .id = tx_hash[0..],
+            .from_addr = tx.from[0..],
+            .to_addr = tx.to[0..],
+            .signature = tx.signature[0..],
+            .fee = tx.fee,
+            .amount = tx.amount,
+        });
+
+        std.debug.print("Transaction added successfully\n", .{});
     }
 
     // pub fn loadFromDisk(self: *MemPool) !void {
