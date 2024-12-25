@@ -86,20 +86,6 @@ func ConvertPublicKeyToAddress(publicKey ed25519.PublicKey) string {
 	return "0x" + strings.ToLower(address)
 }
 
-// func (t *Transaction) Sign(privateKey ed25519.PrivateKey) error {
-// 	publicKey := privateKey.Public().(ed25519.PublicKey)
-// 	t.From = hex.EncodeToString(publicKey)
-
-// 	messageHash, err := t.CalculateHash()
-// 	if err != nil {
-// 		return err
-// 	}
-
-//		signature := ed25519.Sign(privateKey, messageHash)
-//		t.Signature = hex.EncodeToString(signature)
-//		return nil
-//	}
-//
 // Store public key hex during signing
 func (t *Transaction) Sign(privateKey ed25519.PrivateKey) error {
 	publicKey := privateKey.Public().(ed25519.PublicKey)
