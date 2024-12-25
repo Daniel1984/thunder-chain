@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	_ "embed"
+	"flag"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -22,7 +24,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	log := logger.WithJSONFormat().With(slog.String("scope", "app"))
+	log := logger.WithJSONFormat().With(slog.String("scope", "mempool"))
 
 	// initialize sqlite db for mempool persistance layer
 	db, err := sqlite.NewDB(ctx, "mempool.db")
@@ -44,7 +46,9 @@ func main() {
 		models: models.NewModels(db),
 	}
 
-	listener, err := net.Listen("tcp", ":8181")
+	flag.StringVar(&mempoolSvc.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
+
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", mempoolSvc.apiPort))
 	if err != nil {
 		log.Error("failed starting net listener", "err", err)
 		os.Exit(1)
@@ -53,6 +57,7 @@ func main() {
 	server := grpc.NewServer()
 	reflection.Register(server)
 
+	log.Info("rpc server started", "port exposed", mempoolSvc.apiPort)
 	proto.RegisterTransactionServiceServer(server, mempoolSvc)
 	if err := server.Serve(listener); err != nil {
 		log.Error("failed to serve", "err", err)
