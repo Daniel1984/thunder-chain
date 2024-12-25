@@ -4,7 +4,9 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -26,7 +28,22 @@ type Transaction struct {
 	Expires   int64  `json:"expires" db:"expires"`
 }
 
-func NewTransaction(from string, to string, amount, fee uint64, expiration time.Duration) *Transaction {
+func validateAddress(addr string) bool {
+	if !strings.HasPrefix(addr, "0x") {
+		return false
+	}
+	if len(addr) != 42 { // 0x + 40 hex chars
+		return false
+	}
+	_, err := hex.DecodeString(addr[2:])
+	return err == nil
+}
+
+func NewTransaction(from, to string, amount, fee uint64, expiration time.Duration) (*Transaction, error) {
+	if !validateAddress(from) || !validateAddress(to) {
+		return nil, errors.New("invalid address format")
+	}
+
 	return &Transaction{
 		From:      from,
 		To:        to,
@@ -34,7 +51,7 @@ func NewTransaction(from string, to string, amount, fee uint64, expiration time.
 		Fee:       fee,
 		Timestamp: time.Now().Unix(),
 		Expires:   time.Now().Add(expiration).Unix(),
-	}
+	}, nil
 }
 
 func (t *Transaction) CalculateHash() ([]byte, error) {
@@ -62,32 +79,64 @@ func (t *Transaction) CalculateHash() ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
+// ConvertPublicKeyToAddress converts an Ed25519 public key to a readable address.
+func ConvertPublicKeyToAddress(publicKey ed25519.PublicKey) string {
+	hash := sha256.Sum256(publicKey)            // Hash the public key
+	address := hex.EncodeToString(hash[:])[:40] // Take the first 20 bytes (40 hex characters)
+	return "0x" + strings.ToLower(address)
+}
+
+// func (t *Transaction) Sign(privateKey ed25519.PrivateKey) error {
+// 	publicKey := privateKey.Public().(ed25519.PublicKey)
+// 	t.From = hex.EncodeToString(publicKey)
+
+// 	messageHash, err := t.CalculateHash()
+// 	if err != nil {
+// 		return err
+// 	}
+
+//		signature := ed25519.Sign(privateKey, messageHash)
+//		t.Signature = hex.EncodeToString(signature)
+//		return nil
+//	}
+//
+// Store public key hex during signing
 func (t *Transaction) Sign(privateKey ed25519.PrivateKey) error {
 	publicKey := privateKey.Public().(ed25519.PublicKey)
-	if string(publicKey) != t.From {
+	if ConvertPublicKeyToAddress(publicKey) != t.From {
 		return ErrInvalidPublicKey
 	}
 
+	t.ID = hex.EncodeToString(publicKey) // Store public key for verification
 	messageHash, err := t.CalculateHash()
 	if err != nil {
 		return err
 	}
 
 	signature := ed25519.Sign(privateKey, messageHash)
-	t.Signature = string(signature)
+	t.Signature = hex.EncodeToString(signature)
 	return nil
 }
 
+// Use stored public key hex for verification
 func (t *Transaction) Verify() error {
-	publicKey := ed25519.PublicKey([]byte(t.From))
 	messageHash, err := t.CalculateHash()
 	if err != nil {
 		return err
 	}
 
-	if !ed25519.Verify(publicKey, messageHash, []byte(t.Signature)) {
-		return ErrInvalidSignature
+	signature, err := hex.DecodeString(t.Signature)
+	if err != nil {
+		return err
 	}
 
+	pubKey, err := hex.DecodeString(t.ID) // Use stored public key
+	if err != nil {
+		return err
+	}
+
+	if !ed25519.Verify(ed25519.PublicKey(pubKey), messageHash, signature) {
+		return ErrInvalidSignature
+	}
 	return nil
 }
