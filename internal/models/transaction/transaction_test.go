@@ -1,99 +1,104 @@
 package transaction
 
 import (
-	"crypto/ed25519"
+	"encoding/hex"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewTransaction(t *testing.T) {
-	from := "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
-	to := "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
-	amount := uint64(100)
-	fee := uint64(1)
-	expiration := 10 * time.Minute
-
-	tx, err := NewTransaction(from, to, amount, fee, expiration)
-	assert.NoError(t, err)
-
-	assert.Equal(t, from, tx.From)
-	assert.Equal(t, to, tx.To)
-	assert.Equal(t, amount, tx.Amount)
-	assert.Equal(t, fee, tx.Fee)
-	assert.LessOrEqual(t, time.Now().Unix(), tx.Timestamp)
-	assert.Greater(t, tx.Expires, tx.Timestamp)
-}
-
-func TestCalculateHash(t *testing.T) {
+func TestTransaction_CalculateHash(t *testing.T) {
 	tx := &Transaction{
 		From:      "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-		To:        "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-		Amount:    100,
-		Fee:       1,
+		To:        "0x7217d3eC0A0C357d7Dde4896094B83137c137E42",
+		Amount:    1000,
+		Fee:       10,
+		Nonce:     1,
+		Data:      []byte("test data"),
 		Timestamp: time.Now().Unix(),
-		Expires:   time.Now().Add(10 * time.Minute).Unix(),
+		Expires:   time.Now().Add(time.Hour).Unix(),
 	}
 
-	hash, err := tx.CalculateHash()
-	assert.NoError(t, err)
-	assert.NotEmpty(t, hash)
-	assert.Len(t, hash, 32) // SHA-256 produces 32 bytes
+	hash1 := tx.CalculateHash()
+	assert.NotEmpty(t, hash1)
+
+	// Same data should produce same hash
+	hash2 := tx.CalculateHash()
+	assert.Equal(t, hash1, hash2)
+
+	// Different data should produce different hash
+	tx.Amount = 2000
+	hash3 := tx.CalculateHash()
+	assert.NotEqual(t, hash1, hash3)
 }
 
-func TestSignAndVerify(t *testing.T) {
-	publicKey, privateKey, err := ed25519.GenerateKey(nil)
+func TestTransaction_SetHash(t *testing.T) {
+	tx := &Transaction{
+		From:   "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+		To:     "0x7217d3eC0A0C357d7Dde4896094B83137c137E42",
+		Amount: 1000,
+		Fee:    10,
+		Nonce:  1,
+	}
+
+	tx.SetHash()
+	assert.NotEmpty(t, tx.Hash)
+	expected := hex.EncodeToString(tx.CalculateHash())
+	assert.Equal(t, expected, tx.Hash)
+}
+
+func TestTransaction_SignAndVerify(t *testing.T) {
+	privateKey, err := crypto.GenerateKey()
 	assert.NoError(t, err)
 
-	fromAddress := ConvertPublicKeyToAddress(publicKey)
-	toAddress := "0x000000000000000000000000000000000000000a"
+	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	tx, err := NewTransaction(fromAddress, toAddress, 100, 1, 10*time.Minute)
-	assert.NoError(t, err)
+	tx := &Transaction{
+		From:   address,
+		To:     "0x7217d3eC0A0C357d7Dde4896094B83137c137E42",
+		Amount: 1000,
+		Fee:    10,
+		Nonce:  1,
+	}
 
-	err = tx.Sign(privateKey)
+	tx.SetHash()
+
+	// Sign transaction
+	err = SignTransaction(tx, privateKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tx.Signature)
 
+	// Verify valid transaction
 	err = tx.Verify()
 	assert.NoError(t, err)
-}
 
-func TestSignWithInvalidKey(t *testing.T) {
-	publicKey1, _, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-
-	_, privateKey2, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-
-	fromAddress := ConvertPublicKeyToAddress(publicKey1)
-	toAddress := "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
-
-	tx, err := NewTransaction(fromAddress, toAddress, 100, 1, 10*time.Minute)
-	assert.NoError(t, err)
-
-	err = tx.Sign(privateKey2)
-	assert.ErrorIs(t, err, ErrInvalidPublicKey)
-}
-
-func TestVerifyWithTamperedData(t *testing.T) {
-	pub, priv, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-
-	pub2, _, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-
-	fromAddress := ConvertPublicKeyToAddress(pub)
-	toAddress := ConvertPublicKeyToAddress(pub2)
-
-	tx, err := NewTransaction(fromAddress, toAddress, 100, 1, 10*time.Minute)
-	assert.NoError(t, err)
-
-	err = tx.Sign(priv)
-	assert.NoError(t, err)
-
-	tx.Amount = 200
+	// Test invalid hash
+	originalHash := tx.Hash
+	tx.Hash = "invalid"
 	err = tx.Verify()
-	assert.ErrorIs(t, err, ErrInvalidSignature)
+	assert.Equal(t, ErrInvalidHash, err)
+	tx.Hash = originalHash
+
+	// Test invalid signature
+	tx.Signature[0] ^= 0x01
+	err = tx.Verify()
+	assert.Error(t, err)
+
+	// Test invalid sender
+	tx.From = "0x7217d3eC0A0C357d7Dde4896094B83137c137E42"
+	err = tx.Verify()
+	assert.Equal(t, ErrInvalidSignature, err)
+}
+
+func TestSignTransaction_InvalidKey(t *testing.T) {
+	tx := &Transaction{
+		From:   "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+		To:     "0x7217d3eC0A0C357d7Dde4896094B83137c137E42",
+		Amount: 1000,
+	}
+
+	err := SignTransaction(tx, nil)
+	assert.Error(t, err)
 }

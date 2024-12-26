@@ -68,10 +68,7 @@ func (b *Block) CalculateMerkleRoot() (string, error) {
 	currentLevel := make([]string, 0)
 
 	for _, tx := range b.Transactions {
-		hash, err := tx.CalculateHash()
-		if err != nil {
-			return "", err
-		}
+		hash := tx.CalculateHash()
 		currentLevel = append(currentLevel, string(hash))
 	}
 

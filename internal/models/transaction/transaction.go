@@ -1,13 +1,13 @@
 package transaction
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"strings"
-	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -15,114 +15,96 @@ var (
 	ErrInvalidPublicKey = errors.New("invalid public key")
 	ErrSigningError     = errors.New("signing error")
 	ErrInvalidDataLen   = errors.New("invalid data length")
+	ErrInvalidHash      = errors.New("invalid transaction hash")
 )
 
 type Transaction struct {
-	ID        string `json:"id" db:"id"`
+	Hash      string `json:"hash" db:"id"`
 	From      string `json:"from_addr" db:"from_addr"` // Sender's public key
 	To        string `json:"to_addr" db:"to_addr"`     // Recipient's public key
-	Signature string `json:"signature" db:"signature"` // Ed25519 signature
 	Amount    uint64 `json:"amount" db:"amount"`
 	Fee       uint64 `json:"fee" db:"fee"`
+	Nonce     uint64 `json:"nonce"`
+	Data      []byte `json:"data,omitempty"`
+	Signature []byte `json:"signature"`
 	Timestamp int64  `json:"timestamp" db:"timestamp"`
 	Expires   int64  `json:"expires" db:"expires"`
 }
 
-func validateAddress(addr string) bool {
-	if !strings.HasPrefix(addr, "0x") {
-		return false
-	}
-	if len(addr) != 42 { // 0x + 40 hex chars
-		return false
-	}
-	_, err := hex.DecodeString(addr[2:])
-	return err == nil
-}
-
-func NewTransaction(from, to string, amount, fee uint64, expiration time.Duration) (*Transaction, error) {
-	if !validateAddress(from) || !validateAddress(to) {
-		return nil, errors.New("invalid address format")
-	}
-
-	return &Transaction{
-		From:      from,
-		To:        to,
-		Amount:    amount,
-		Fee:       fee,
-		Timestamp: time.Now().Unix(),
-		Expires:   time.Now().Add(expiration).Unix(),
-	}, nil
-}
-
-func (t *Transaction) CalculateHash() ([]byte, error) {
+func (t *Transaction) CalculateHash() []byte {
 	hasher := sha256.New()
+	buf := make([]byte, 8)
 
+	// Order matters for consistency across nodes
 	hasher.Write([]byte(t.From))
 	hasher.Write([]byte(t.To))
 
-	amountBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(amountBytes, t.Amount)
-	hasher.Write(amountBytes)
+	binary.BigEndian.PutUint64(buf, t.Amount)
+	hasher.Write(buf)
 
-	feeBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(feeBytes, t.Fee)
-	hasher.Write(feeBytes)
+	binary.BigEndian.PutUint64(buf, t.Fee)
+	hasher.Write(buf)
+
+	binary.BigEndian.PutUint64(buf, t.Nonce)
+	hasher.Write(buf)
 
 	timestampBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(timestampBytes, uint64(t.Timestamp))
 	hasher.Write(timestampBytes)
 
 	expiresBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(expiresBytes, uint64(t.Timestamp))
+	binary.LittleEndian.PutUint64(expiresBytes, uint64(t.Expires))
 	hasher.Write(expiresBytes)
 
-	return hasher.Sum(nil), nil
-}
-
-// ConvertPublicKeyToAddress converts an Ed25519 public key to a readable address.
-func ConvertPublicKeyToAddress(publicKey ed25519.PublicKey) string {
-	hash := sha256.Sum256(publicKey)            // Hash the public key
-	address := hex.EncodeToString(hash[:])[:40] // Take the first 20 bytes (40 hex characters)
-	return "0x" + strings.ToLower(address)
-}
-
-// Store public key hex during signing
-func (t *Transaction) Sign(privateKey ed25519.PrivateKey) error {
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	if ConvertPublicKeyToAddress(publicKey) != t.From {
-		return ErrInvalidPublicKey
+	if len(t.Data) > 0 {
+		hasher.Write(t.Data)
 	}
 
-	t.ID = hex.EncodeToString(publicKey) // Store public key for verification
-	messageHash, err := t.CalculateHash()
+	return hasher.Sum(nil)
+}
+
+func (t *Transaction) SetHash() {
+	t.Hash = hex.EncodeToString(t.CalculateHash())
+}
+
+func (t *Transaction) Verify() error {
+	// Verify signature and sender first
+	msgHash := crypto.Keccak256Hash(t.CalculateHash())
+	pubKey, err := crypto.Ecrecover(msgHash.Bytes(), t.Signature)
 	if err != nil {
-		return err
+		return ErrInvalidSignature
 	}
 
-	signature := ed25519.Sign(privateKey, messageHash)
-	t.Signature = hex.EncodeToString(signature)
+	publicKeyECDSA, err := crypto.UnmarshalPubkey(pubKey)
+	if err != nil {
+		return ErrInvalidSignature
+	}
+
+	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+	if address != t.From {
+		return ErrInvalidSignature
+	}
+
+	// Then verify hash matches data
+	calculatedHash := hex.EncodeToString(t.CalculateHash())
+	if calculatedHash != t.Hash {
+		return ErrInvalidHash
+	}
+
 	return nil
 }
 
-// Use stored public key hex for verification
-func (t *Transaction) Verify() error {
-	messageHash, err := t.CalculateHash()
-	if err != nil {
-		return err
+// Reference for client-side signing
+func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
+	if privateKey == nil {
+		return ErrSigningError
 	}
 
-	signature, err := hex.DecodeString(t.Signature)
+	hash := crypto.Keccak256Hash(tx.CalculateHash())
+	signature, err := crypto.Sign(hash.Bytes(), privateKey)
 	if err != nil {
-		return err
+		return ErrSigningError
 	}
-
-	pubKey, err := hex.DecodeString(t.ID) // Use stored public key
-	if err != nil {
-		return err
-	}
-
-	if !ed25519.Verify(ed25519.PublicKey(pubKey), messageHash, signature) {
-		return ErrInvalidSignature
-	}
+	tx.Signature = signature
 	return nil
 }

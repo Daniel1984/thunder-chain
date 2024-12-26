@@ -21,7 +21,7 @@ type Mempool struct {
 func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateTransactionRequest) (*proto.CreateTransactionResponse, error) {
 	mp.log.Info("::: CreateTransaction...")
 	fmt.Printf("::: CreateTransaction... in :> %+v\n", in.Transaction)
-	return &proto.CreateTransactionResponse{Id: "foobarbazqux"}, nil
+	return &proto.CreateTransactionResponse{Hash: "foobarbazqux"}, nil
 }
 
 func (mp *Mempool) DeleteTransaction(ctx context.Context, in *proto.DeleteTransactionRequest) (*proto.DeleteTransactionResponse, error) {

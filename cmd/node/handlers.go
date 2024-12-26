@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"com.perkunas/internal/httpjsonres"
 	"com.perkunas/internal/models/transaction"
@@ -19,6 +20,14 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if txn.Timestamp == 0 {
+		txn.Timestamp = time.Now().Unix()
+	}
+
+	if txn.Expires == 0 {
+		txn.Expires = time.Now().Add(15 * time.Minute).Unix()
+	}
+
 	if err := txn.Verify(); err != nil {
 		a.log.Error("invalid or tampered transaction", "err", err)
 		http.Error(w, "invalid or tampered transaction", http.StatusBadRequest)
@@ -26,7 +35,7 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	protoTxn := proto.Transaction{
-		Id:        txn.ID,
+		Hash:      txn.Hash,
 		FromAddr:  txn.From,
 		ToAddr:    txn.To,
 		Signature: txn.Signature,
