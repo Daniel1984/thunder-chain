@@ -22,11 +22,11 @@ type Transaction struct {
 	Hash      string `json:"hash" db:"id"`
 	From      string `json:"from_addr" db:"from_addr"` // Sender's public key
 	To        string `json:"to_addr" db:"to_addr"`     // Recipient's public key
+	Data      string `json:"data,omitempty"`
+	Signature string `json:"signature"`
 	Amount    uint64 `json:"amount" db:"amount"`
 	Fee       uint64 `json:"fee" db:"fee"`
 	Nonce     uint64 `json:"nonce"`
-	Data      []byte `json:"data,omitempty"`
-	Signature []byte `json:"signature"`
 	Timestamp int64  `json:"timestamp" db:"timestamp"`
 	Expires   int64  `json:"expires" db:"expires"`
 }
@@ -69,8 +69,13 @@ func (t *Transaction) SetHash() {
 
 func (t *Transaction) Verify() error {
 	// Verify signature and sender first
+	sigBytes, err := hex.DecodeString(t.Signature)
+	if err != nil {
+		return ErrInvalidSignature
+	}
+
 	msgHash := crypto.Keccak256Hash(t.CalculateHash())
-	pubKey, err := crypto.Ecrecover(msgHash.Bytes(), t.Signature)
+	pubKey, err := crypto.Ecrecover(msgHash.Bytes(), sigBytes)
 	if err != nil {
 		return ErrInvalidSignature
 	}
@@ -105,6 +110,7 @@ func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
 	if err != nil {
 		return ErrSigningError
 	}
-	tx.Signature = signature
+
+	tx.Signature = hex.EncodeToString(signature)
 	return nil
 }

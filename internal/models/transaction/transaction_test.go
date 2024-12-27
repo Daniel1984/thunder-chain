@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ func TestTransaction_CalculateHash(t *testing.T) {
 		Amount:    1000,
 		Fee:       10,
 		Nonce:     1,
-		Data:      []byte("test data"),
+		Data:      "test data",
 		Timestamp: time.Now().Unix(),
 		Expires:   time.Now().Add(time.Hour).Unix(),
 	}
@@ -78,7 +77,8 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 
 	t.Logf("::: tx :> %+v\n", tx)
 	t.Logf("::: sig raw :> %s\n", tx.Signature)
-	t.Logf("::: sig string :> %s\n", base64.StdEncoding.EncodeToString(tx.Signature))
+	// t.Logf("::: sig string :> %s\n", base64.StdEncoding.EncodeToString(tx.Signature))
+	t.Logf("::: sig string :> %s\n", tx.Signature)
 
 	// Test invalid hash
 	originalHash := tx.Hash
@@ -91,7 +91,9 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 	tx.Hash = originalHash
 
 	// Test invalid signature
-	tx.Signature[0] ^= 0x01
+	sigBytes, _ := hex.DecodeString(tx.Signature)
+	sigBytes[0] ^= 0x01
+	tx.Signature = hex.EncodeToString(sigBytes)
 	err = tx.Verify()
 	assert.Error(t, err)
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"com.perkunas/internal/models"
@@ -22,13 +21,10 @@ type Mempool struct {
 }
 
 func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateTransactionRequest) (*proto.CreateTransactionResponse, error) {
-	fmt.Printf("::: CreateTransaction... in :> %+v\n", in.Transaction)
-
 	pld := transaction.Transaction{
-		Hash: in.Transaction.Hash,
-		From: in.Transaction.FromAddr,
-		To:   in.Transaction.ToAddr,
-		// Signature: hex.EncodeToString(in.Transaction.Signature),
+		Hash:      in.Transaction.Hash,
+		From:      in.Transaction.FromAddr,
+		To:        in.Transaction.ToAddr,
 		Signature: in.Transaction.Signature,
 		Amount:    in.Transaction.Amount,
 		Fee:       in.Transaction.Fee,
