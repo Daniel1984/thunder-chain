@@ -11,11 +11,15 @@ import (
 )
 
 var (
-	ErrInvalidSignature = errors.New("invalid signature")
-	ErrInvalidPublicKey = errors.New("invalid public key")
-	ErrSigningError     = errors.New("signing error")
-	ErrInvalidDataLen   = errors.New("invalid data length")
-	ErrInvalidHash      = errors.New("invalid transaction hash")
+	ErrInvalidSignature        = errors.New("invalid signature")
+	ErrInvalidPublicKey        = errors.New("invalid public key")
+	ErrSigningError            = errors.New("signing error")
+	ErrInvalidDataLen          = errors.New("invalid data length")
+	ErrInvalidHash             = errors.New("invalid transaction hash")
+	ErrInvalidSignatureFormat  = errors.New("invalid signature format")
+	ErrSignatureRecoveryFailed = errors.New("failed to recover public key from signature")
+	ErrInvalidPublicKeyFormat  = errors.New("invalid public key format")
+	ErrSignatureSenderMismatch = errors.New("signature does not match sender address")
 )
 
 type Transaction struct {
@@ -48,18 +52,6 @@ func (t *Transaction) CalculateHash() []byte {
 	binary.BigEndian.PutUint64(buf, t.Nonce)
 	hasher.Write(buf)
 
-	// timestampBytes := make([]byte, 8)
-	// binary.LittleEndian.PutUint64(timestampBytes, uint64(t.Timestamp))
-	// hasher.Write(timestampBytes)
-
-	// expiresBytes := make([]byte, 8)
-	// binary.LittleEndian.PutUint64(expiresBytes, uint64(t.Expires))
-	// hasher.Write(expiresBytes)
-
-	// if len(t.Data) > 0 {
-	// 	hasher.Write(t.Data)
-	// }
-
 	return hasher.Sum(nil)
 }
 
@@ -71,23 +63,23 @@ func (t *Transaction) Verify() error {
 	// Verify signature and sender first
 	sigBytes, err := hex.DecodeString(t.Signature)
 	if err != nil {
-		return ErrInvalidSignature
+		return ErrInvalidSignatureFormat
 	}
 
 	msgHash := crypto.Keccak256Hash(t.CalculateHash())
 	pubKey, err := crypto.Ecrecover(msgHash.Bytes(), sigBytes)
 	if err != nil {
-		return ErrInvalidSignature
+		return ErrSignatureRecoveryFailed
 	}
 
 	publicKeyECDSA, err := crypto.UnmarshalPubkey(pubKey)
 	if err != nil {
-		return ErrInvalidSignature
+		return ErrInvalidPublicKeyFormat
 	}
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 	if address != t.From {
-		return ErrInvalidSignature
+		return ErrSignatureSenderMismatch
 	}
 
 	// Then verify hash matches data

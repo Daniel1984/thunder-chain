@@ -63,8 +63,6 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 		Nonce:  1,
 	}
 
-	tx.SetHash()
-
 	// Sign transaction
 	err = SignTransaction(tx, privateKey)
 	tx.SetHash()
@@ -100,7 +98,7 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 	// Test invalid sender
 	tx.From = "0x7217d3eC0A0C357d7Dde4896094B83137c137E42"
 	err = tx.Verify()
-	assert.Equal(t, ErrInvalidSignature, err)
+	assert.Equal(t, ErrSignatureSenderMismatch, err)
 }
 
 func TestSignTransaction_InvalidKey(t *testing.T) {
