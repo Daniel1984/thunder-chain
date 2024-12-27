@@ -48,17 +48,17 @@ func (t *Transaction) CalculateHash() []byte {
 	binary.BigEndian.PutUint64(buf, t.Nonce)
 	hasher.Write(buf)
 
-	timestampBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(timestampBytes, uint64(t.Timestamp))
-	hasher.Write(timestampBytes)
+	// timestampBytes := make([]byte, 8)
+	// binary.LittleEndian.PutUint64(timestampBytes, uint64(t.Timestamp))
+	// hasher.Write(timestampBytes)
 
-	expiresBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(expiresBytes, uint64(t.Expires))
-	hasher.Write(expiresBytes)
+	// expiresBytes := make([]byte, 8)
+	// binary.LittleEndian.PutUint64(expiresBytes, uint64(t.Expires))
+	// hasher.Write(expiresBytes)
 
-	if len(t.Data) > 0 {
-		hasher.Write(t.Data)
-	}
+	// if len(t.Data) > 0 {
+	// 	hasher.Write(t.Data)
+	// }
 
 	return hasher.Sum(nil)
 }

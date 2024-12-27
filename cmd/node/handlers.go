@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -28,6 +29,8 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 		txn.Expires = time.Now().Add(15 * time.Minute).Unix()
 	}
 
+	fmt.Printf("::: tx :> %+v\n", txn)
+
 	if err := txn.Verify(); err != nil {
 		a.log.Error("invalid or tampered transaction", "err", err)
 		http.Error(w, "invalid or tampered transaction", http.StatusBadRequest)
@@ -41,6 +44,8 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 		Signature: txn.Signature,
 		Amount:    txn.Amount,
 		Fee:       txn.Fee,
+		Nonce:     txn.Nonce,
+		Data:      txn.Data,
 		Timestamp: txn.Timestamp,
 		Expires:   txn.Expires,
 	}
