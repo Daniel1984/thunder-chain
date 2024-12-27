@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -17,7 +16,7 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 	var txn transaction.Transaction
 	if err := json.NewDecoder(r.Body).Decode(&txn); err != nil {
 		a.log.Error("could not read request body", "err", err)
-		http.Error(w, "could not create transaction", http.StatusBadRequest)
+		http.Error(w, "most likely invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -29,11 +28,9 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 		txn.Expires = time.Now().Add(15 * time.Minute).Unix()
 	}
 
-	fmt.Printf("::: tx :> %+v\n", txn)
-
 	if err := txn.Verify(); err != nil {
-		a.log.Error("invalid or tampered transaction", "err", err)
-		http.Error(w, "invalid or tampered transaction", http.StatusBadRequest)
+		a.log.Error("invalid or tampered transaction", "tx", txn, "err", err)
+		http.Error(w, "invalid or tampered transaction data", http.StatusBadRequest)
 		return
 	}
 
@@ -53,7 +50,7 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 	pld := &proto.CreateTransactionRequest{Transaction: &protoTxn}
 	createResp, err := a.rpcClient.CreateTransaction(r.Context(), pld)
 	if err != nil {
-		a.log.Error("could not create transaction", "err", err)
+		a.log.Error("could not push transaction to mempool", "txHash", txn.Hash, "err", err)
 		http.Error(w, "could not create transaction", http.StatusBadRequest)
 		return
 	}
