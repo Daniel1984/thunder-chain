@@ -3,6 +3,7 @@ package block
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"time"
 
 	"com.perkunas/internal/models/transaction"
@@ -40,7 +41,7 @@ func (b *Block) CalculateHash() (string, error) {
 	binary.Write(hasher, binary.LittleEndian, b.Nonce)
 	hasher.Write([]byte(b.MerkleRoot))
 
-	return string(hasher.Sum(nil)), nil
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func hashPair(left, right string) (string, error) {
