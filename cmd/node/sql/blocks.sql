@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS blocks (
   difficulty INTEGER NOT NULL DEFAULT 0 CHECK (nonce >= 0),
   nonce INTEGER NOT NULL DEFAULT 0 CHECK (nonce >= 0),
   timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-  transactions JSON DEFAULT '[]' CHECK (json_valid(transactions))
+  transactions TEXT DEFAULT '[]' CHECK (json_valid(transactions))
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_blocks_prev_hash ON blocks(prev_hash);

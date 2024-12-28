@@ -35,6 +35,7 @@ func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateTransa
 	}
 
 	if err := mp.models.TransactionModel.Save(ctx, pld); err != nil {
+		mp.log.Info("failed saving transaction in mempool", "err", err)
 		return nil, status.Error(codes.Internal, "failed persisting transaction")
 	}
 
