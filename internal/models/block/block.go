@@ -9,13 +9,14 @@ import (
 )
 
 type Block struct {
-	Hash         string
-	PrevHash     string
-	MerkleRoot   string
-	Timestamp    int64
-	Height       uint64
-	Nonce        uint64
-	Transactions []*transaction.Transaction
+	Hash       string `json:"hash" db:"hash"`
+	PrevHash   string `json:"prev_hash" db:"prev_hash"`
+	MerkleRoot string `json:"merkle_root" db:"merkle_root"`
+	Timestamp  int64  `json:"timestamp" db:"timestamp"`
+	Height     uint64 `json:"height" db:"height"`
+	Nonce      uint64 `json:"nonce" db:"nonce"`
+	// Transactions []*transaction.Transaction `json:"transactions" db:"transactions"` // store in separate table
+	Transactions []*transaction.Transaction `json:"transactions"`
 }
 
 func NewBlock() *Block {

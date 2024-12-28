@@ -29,6 +29,10 @@ func (db *DB) NamedExecContext(ctx context.Context, query string, arg any) (sql.
 	return db.WriteDB.NamedExecContext(ctx, query, arg)
 }
 
+func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return db.ReadDB.GetContext(ctx, dest, query, args...)
+}
+
 func (db *DB) Select(ctx context.Context, dest any, query string, args ...any) error {
 	return db.ReadDB.SelectContext(ctx, dest, query, args...)
 }

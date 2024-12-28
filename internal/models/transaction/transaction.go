@@ -23,7 +23,7 @@ var (
 )
 
 type Transaction struct {
-	Hash      string `json:"hash" db:"id"`
+	Hash      string `json:"hash" db:"hash"`
 	From      string `json:"from_addr" db:"from_addr"` // Sender's public key
 	To        string `json:"to_addr" db:"to_addr"`     // Recipient's public key
 	Data      string `json:"data,omitempty"`
