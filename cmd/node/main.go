@@ -76,6 +76,13 @@ func main() {
 			os.Exit(1)
 		}
 
+		blockHash, err := block.CalculateHash()
+		if err != nil {
+			log.Error("unable to calculate genesis block hash", "err", err)
+			os.Exit(1)
+		}
+
+		block.Hash = blockHash
 		if err := app.blockModel.Save(ctx, block); err != nil {
 			log.Error("unable to create genesis block", "err", err)
 			os.Exit(1)
