@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-//go:embed mempool.sql
+//go:embed sql/mempool.sql
 var mempoolsql string
 
 func main() {

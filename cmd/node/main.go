@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	_ "embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -9,27 +12,80 @@ import (
 
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/middleware"
+	"com.perkunas/internal/models/block"
 	"com.perkunas/internal/server"
+	"com.perkunas/internal/sqlite"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+//go:embed sql/accounts.sql
+var accountsSql string
+
+//go:embed sql/blocks.sql
+var blocksSql string
+
+//go:embed genesis.json
+var genesisJson string
+
 type App struct {
 	log        *slog.Logger
 	mempoolAPI string
 	apiPort    string
+	blockModel block.BlockModel
 	rpcClient  proto.TransactionServiceClient
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	log := logger.WithJSONFormat().With(slog.String("scope", "node"))
-	app := &App{log: log}
+
+	blocksDB, err := dbConnection(ctx, "blocks.db", blocksSql)
+	if err != nil {
+		log.Error("failed connecting to db", "err", err)
+		os.Exit(1)
+	}
+	defer blocksDB.Close()
+
+	accountsDB, err := dbConnection(ctx, "accounts.db", accountsSql)
+	if err != nil {
+		log.Error("failed connecting to db", "err", err)
+		os.Exit(1)
+	}
+	defer accountsDB.Close()
+
+	app := &App{
+		log:        log,
+		blockModel: block.BlockModel{DB: blocksDB},
+	}
+
+	hasGenesis, err := app.blockModel.HasGenesisBlock(ctx)
+	if err != nil {
+		log.Error("unable to check genesis block", "err", err)
+		os.Exit(1)
+	}
+
+	if !hasGenesis {
+		// create genesis block
+		var block block.Block
+		if err := json.Unmarshal([]byte(genesisJson), &block); err != nil {
+			log.Error("unable to unmarshal genesis block", "err", err)
+			os.Exit(1)
+		}
+
+		if err := app.blockModel.Save(ctx, block); err != nil {
+			log.Error("unable to create genesis block", "err", err)
+			os.Exit(1)
+		}
+	}
 
 	flag.StringVar(&app.mempoolAPI, "mempoolapi", os.Getenv("MEMPOOL_API"), "mempool api endpoint")
 	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "node api port")
 
-	conn, client, err := newRpcClient(app.mempoolAPI)
+	conn, client, err := rpcClient(app.mempoolAPI)
 	if err != nil {
 		log.Error("grpc did not connect", "err", err)
 		os.Exit(1)
@@ -37,7 +93,7 @@ func main() {
 	defer conn.Close()
 	app.rpcClient = client
 
-	srv := newServer(app.getRouter(), app.apiPort)
+	srv := httpServer(app.getRouter(), app.apiPort)
 
 	log.Info("api server started", "port exposed", app.apiPort)
 	if err := srv.Start(); err != nil {
@@ -46,7 +102,7 @@ func main() {
 	}
 }
 
-func newServer(mux *http.ServeMux, port string) *server.Server {
+func httpServer(mux *http.ServeMux, port string) *server.Server {
 	return server.
 		Get().
 		WithAddr(fmt.Sprintf(":%s", port)).
@@ -54,7 +110,7 @@ func newServer(mux *http.ServeMux, port string) *server.Server {
 		WithRouter(mux)
 }
 
-func newRpcClient(apiUrl string) (*grpc.ClientConn, proto.TransactionServiceClient, error) {
+func rpcClient(apiUrl string) (*grpc.ClientConn, proto.TransactionServiceClient, error) {
 	conn, err := grpc.NewClient(apiUrl, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, err
@@ -62,4 +118,17 @@ func newRpcClient(apiUrl string) (*grpc.ClientConn, proto.TransactionServiceClie
 
 	client := proto.NewTransactionServiceClient(conn)
 	return conn, client, nil
+}
+
+func dbConnection(ctx context.Context, dbName, sql string) (*sqlite.DB, error) {
+	db, err := sqlite.NewDB(ctx, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("failed connecting to %s db %w", dbName, err)
+	}
+
+	if _, err := db.Exec(ctx, sql); err != nil {
+		return nil, fmt.Errorf("failed migrating %s db %w", dbName, err)
+	}
+
+	return db, nil
 }

@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS mempool(
-  id BLOB PRIMARY KEY,
-  from_addr BLOB NOT NULL,
-  to_addr BLOB NOT NULL,
-  signature BLOB NOT NULL,
+  hash TEXT PRIMARY KEY,
+  from_addr TEXT NOT NULL,
+  to_addr TEXT NOT NULL,
+  signature TEXT NOT NULL,
   fee INTEGER NOT NULL,
   amount INTEGER NOT NULL,
   timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
