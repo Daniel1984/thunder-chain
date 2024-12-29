@@ -42,7 +42,7 @@ func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateTransa
 	return &proto.CreateTransactionResponse{Hash: pld.Hash}, nil
 }
 
+// TODO: implement and accept list of tx hashes to delete
 func (mp *Mempool) DeleteTransaction(ctx context.Context, in *proto.DeleteTransactionRequest) (*proto.DeleteTransactionResponse, error) {
-	mp.log.Info("::: DeleteTransaction...")
 	return &proto.DeleteTransactionResponse{Success: true}, nil
 }
