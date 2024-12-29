@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -12,7 +11,6 @@ import (
 
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/middleware"
-	"com.perkunas/internal/models/block"
 	"com.perkunas/internal/server"
 	"com.perkunas/internal/sqlite"
 	"com.perkunas/proto"
@@ -23,17 +21,10 @@ import (
 //go:embed sql/accounts.sql
 var accountsSql string
 
-//go:embed sql/blocks.sql
-var blocksSql string
-
-//go:embed genesis.json
-var genesisJson string
-
 type App struct {
 	log        *slog.Logger
 	mempoolAPI string
 	apiPort    string
-	blockModel block.BlockModel
 	rpcClient  proto.TransactionServiceClient
 }
 
@@ -43,13 +34,6 @@ func main() {
 
 	log := logger.WithJSONFormat().With(slog.String("scope", "node"))
 
-	blocksDB, err := dbConnection(ctx, "blocks.db", blocksSql)
-	if err != nil {
-		log.Error("failed connecting to db", "err", err)
-		os.Exit(1)
-	}
-	defer blocksDB.Close()
-
 	accountsDB, err := dbConnection(ctx, "accounts.db", accountsSql)
 	if err != nil {
 		log.Error("failed connecting to db", "err", err)
@@ -57,37 +41,7 @@ func main() {
 	}
 	defer accountsDB.Close()
 
-	app := &App{
-		log:        log,
-		blockModel: block.BlockModel{DB: blocksDB},
-	}
-
-	hasGenesis, err := app.blockModel.HasGenesisBlock(ctx)
-	if err != nil {
-		log.Error("unable to check genesis block", "err", err)
-		os.Exit(1)
-	}
-
-	if !hasGenesis {
-		// create genesis block
-		var block block.Block
-		if err := json.Unmarshal([]byte(genesisJson), &block); err != nil {
-			log.Error("unable to unmarshal genesis block", "err", err)
-			os.Exit(1)
-		}
-
-		blockHash, err := block.CalculateHash()
-		if err != nil {
-			log.Error("unable to calculate genesis block hash", "err", err)
-			os.Exit(1)
-		}
-
-		block.Hash = blockHash
-		if err := app.blockModel.Save(ctx, block); err != nil {
-			log.Error("unable to create genesis block", "err", err)
-			os.Exit(1)
-		}
-	}
+	app := &App{log: log}
 
 	flag.StringVar(&app.mempoolAPI, "mempoolapi", os.Getenv("MEMPOOL_API"), "mempool api endpoint")
 	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "node api port")
