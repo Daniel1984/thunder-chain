@@ -16,8 +16,6 @@ services:
           target: ./app
           ignore:
             - .git/
-            - .gitignore
-            - README.md
         - action: rebuild
           path: ./internal
           target: ./app
@@ -42,8 +40,29 @@ services:
           target: ./app
           ignore:
             - .git/
-            - .gitignore
-            - README.md
+        - action: rebuild
+          path: ./internal
+          target: ./app
+        - action: rebuild
+          path: ./proto
+          target: ./app
+  blocks:
+    build:
+      dockerfile: ./cmd/blocks/Dockerfile
+      context: .
+    ports:
+      - "8282:8282"
+    environment:
+      - API_PORT=8282
+    volumes:
+      - ./data:/data
+    develop:
+      watch:
+        - action: rebuild
+          path: ./cmd/blocks
+          target: ./app
+          ignore:
+            - .git/
         - action: rebuild
           path: ./internal
           target: ./app
