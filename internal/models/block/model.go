@@ -11,10 +11,10 @@ type BlockModel struct {
 }
 
 // TODO: persist transations in separate table
-func (bm *BlockModel) Save(ctx context.Context, b Block) error {
+func (bm *BlockModel) Save(ctx context.Context, b BlockDB) error {
 	query := `
-		INSERT INTO blocks (hash, prev_hash, merkle_root, timestamp, height, nonce)
-		VALUES (:hash, :prev_hash, :merkle_root, :timestamp, :height, :nonce)
+		INSERT INTO blocks (hash, prev_hash, merkle_root, timestamp, height, nonce, transactions)
+		VALUES (:hash, :prev_hash, :merkle_root, :timestamp, :height, :nonce, :transactions)
 	`
 	_, err := bm.DB.NamedExecContext(ctx, query, b)
 	return err

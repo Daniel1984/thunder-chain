@@ -4,20 +4,25 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"time"
 
 	"com.perkunas/internal/models/transaction"
 )
 
 type Block struct {
-	Hash       string `json:"hash" db:"hash"`
-	PrevHash   string `json:"prev_hash" db:"prev_hash"`
-	MerkleRoot string `json:"merkle_root" db:"merkle_root"`
-	Timestamp  int64  `json:"timestamp" db:"timestamp"`
-	Height     uint64 `json:"height" db:"height"`
-	Nonce      uint64 `json:"nonce" db:"nonce"`
-	// Transactions []*transaction.Transaction `json:"transactions" db:"transactions"` // store in separate table
-	Transactions []*transaction.Transaction `json:"transactions"`
+	Hash         string                     `json:"hash" db:"hash"`
+	PrevHash     string                     `json:"prev_hash" db:"prev_hash"`
+	MerkleRoot   string                     `json:"merkle_root" db:"merkle_root"`
+	Timestamp    int64                      `json:"timestamp" db:"timestamp"`
+	Height       uint64                     `json:"height" db:"height"`
+	Nonce        uint64                     `json:"nonce" db:"nonce"`
+	Transactions []*transaction.Transaction `json:"transactions" db:"-"`
+}
+
+type BlockDB struct {
+	Block
+	TransactionsDB json.RawMessage `json:"transactionsdb" db:"transactions"`
 }
 
 func NewBlock() *Block {
