@@ -8,8 +8,8 @@ message Transaction {
   string from_addr = 2;
   string to_addr = 3;
   string signature = 4;
-  uint64 amount = 5;
-  uint64 fee = 6;
+  int64 amount = 5;
+  int64 fee = 6;
   uint64 nonce = 9;
   string data = 10;
   int64 timestamp = 7;

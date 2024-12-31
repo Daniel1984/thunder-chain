@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package balancechange;
+option go_package = "./proto";
+
+import "transaction.proto";  // Import the transaction proto file
+
+message BalanceChange {
+  string block_hash = 1;
+  uint64 block_height = 2;
+  int64 timestamp = 3;
+  repeated transaction.Transaction transactions = 4;
+}
+
+message CreateBalanceChangeRequest {
+  BalanceChange balancechange = 1;
+}
+
+message CreateBalanceChangeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+service BalanceChangeService {
+  rpc CreateBalanceChange(CreateBalanceChangeRequest) returns (CreateBalanceChangeResponse);
+}
