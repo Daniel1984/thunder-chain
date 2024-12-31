@@ -11,6 +11,8 @@ import (
 
 	"com.perkunas/internal/db"
 	"com.perkunas/internal/logger"
+	"com.perkunas/internal/models/account"
+	"com.perkunas/internal/models/balancechange"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -35,8 +37,10 @@ func main() {
 	defer db.Close()
 
 	app := &App{
-		db:  db,
-		log: log,
+		db:                 db,
+		log:                log,
+		accModel:           &account.Model{DB: db},
+		balanceChangeModel: &balancechange.Model{DB: db},
 	}
 
 	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
@@ -60,7 +64,7 @@ func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
 	return db, nil
 }
 
-func serve(port string, service proto.BlockServiceServer) error {
+func serve(port string, service proto.BalanceChangeServiceServer) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return fmt.Errorf("failed starting net listener %w", err)
@@ -69,7 +73,7 @@ func serve(port string, service proto.BlockServiceServer) error {
 	server := grpc.NewServer()
 	reflection.Register(server)
 
-	proto.RegisterBlockServiceServer(server, service)
+	proto.RegisterBalanceChangeServiceServer(server, service)
 
 	return server.Serve(listener)
 }
