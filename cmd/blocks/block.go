@@ -13,9 +13,9 @@ import (
 )
 
 type App struct {
-	proto.UnimplementedTransactionServiceServer
+	proto.UnimplementedBlockServiceServer
 	log        *slog.Logger
-	blockModel block.BlockModel
+	blockModel block.Model
 	apiPort    string
 }
 

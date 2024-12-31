@@ -6,12 +6,15 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 
-	"com.perkunas/internal/grpcserver"
+	"com.perkunas/internal/db"
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/models/block"
-	"com.perkunas/internal/sqlite"
+	"com.perkunas/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 //go:embed sql/blocks.sql
@@ -35,7 +38,7 @@ func main() {
 	}
 	defer blocksDB.Close()
 
-	app.blockModel = block.BlockModel{DB: blocksDB}
+	app.blockModel = block.Model{DB: blocksDB}
 	if err := app.ensureGenesisBlock(ctx); err != nil {
 		app.log.Error("create genesis block fail", "err", err)
 		os.Exit(1)
@@ -43,21 +46,35 @@ func main() {
 
 	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
 	app.log.Info("rpc server started", "port exposed", app.apiPort)
-	if err := grpcserver.Serve(app.apiPort, app); err != nil {
+	if err := serve(app.apiPort, app); err != nil {
 		app.log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
 }
 
-func dbConnect(ctx context.Context, dbName, sql string) (*sqlite.DB, error) {
-	db, err := sqlite.NewDB(ctx, dbName)
+func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
+	db, err := db.NewDB(ctx, dbName)
 	if err != nil {
 		return nil, fmt.Errorf("failed connecting to %s db %w", dbName, err)
 	}
 
-	if _, err := db.Exec(ctx, sql); err != nil {
+	if _, err := db.WriteDB.ExecContext(ctx, sql); err != nil {
 		return nil, fmt.Errorf("failed migrating %s db %w", dbName, err)
 	}
 
 	return db, nil
+}
+
+func serve(port string, service proto.BlockServiceServer) error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+	if err != nil {
+		return fmt.Errorf("failed starting net listener %w", err)
+	}
+
+	server := grpc.NewServer()
+	reflection.Register(server)
+
+	proto.RegisterBlockServiceServer(server, service)
+
+	return server.Serve(listener)
 }
