@@ -4,9 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"com.perkunas/internal/models"
 	"com.perkunas/internal/models/transaction"
-	"com.perkunas/internal/sqlite"
 	"com.perkunas/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -15,8 +13,7 @@ import (
 type Mempool struct {
 	proto.UnimplementedTransactionServiceServer
 	log     *slog.Logger
-	db      *sqlite.DB
-	models  *models.Models
+	txModel transaction.Model
 	apiPort string
 }
 
@@ -34,7 +31,7 @@ func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateTransa
 		Expires:   in.Transaction.Expires,
 	}
 
-	if err := mp.models.TransactionModel.Save(ctx, pld); err != nil {
+	if err := mp.txModel.Save(ctx, pld); err != nil {
 		mp.log.Info("failed saving transaction in mempool", "err", err)
 		return nil, status.Error(codes.Internal, "failed persisting transaction")
 	}
