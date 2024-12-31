@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package account;
+option go_package = "./proto";
+
+message Account {
+    string address = 1;
+    uint64 balance = 2;
+    uint64 nonce = 3;
+    int64 timestamp = 4;
+}
+
+message CreateAccountRequest {
+    Account account = 1;
+}
+
+message CreateAccountResponse {
+    string address = 1;
+}
+
+message UpdateAccountRequest {
+    string address = 1;
+    uint64 balance = 2;
+    uint64 nonce = 3;
+}
+
+message UpdateAccountResponse {
+    bool success = 1;
+    Account account = 2;  // Return updated account state
+}
+
+service AccountService {
+    rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {}
+    rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse) {}
+}
