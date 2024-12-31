@@ -84,8 +84,8 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 	err = tx.Verify()
 
 	// change to this when doen testing
-	// assert.Equal(t, ErrInvalidHash, err)
-	assert.NotEqual(t, ErrInvalidHash, err)
+	assert.Equal(t, ErrInvalidHash, err)
+	// assert.NotEqual(t, ErrInvalidHash, err)
 	tx.Hash = originalHash
 
 	// Test invalid signature

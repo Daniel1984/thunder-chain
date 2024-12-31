@@ -28,8 +28,8 @@ type Transaction struct {
 	To        string `json:"to_addr" db:"to_addr"`     // Recipient's public key
 	Data      string `json:"data,omitempty"`
 	Signature string `json:"signature"`
-	Amount    uint64 `json:"amount" db:"amount"`
-	Fee       uint64 `json:"fee" db:"fee"`
+	Amount    int64  `json:"amount" db:"amount"`
+	Fee       int64  `json:"fee" db:"fee"`
 	Nonce     uint64 `json:"nonce"`
 	Timestamp int64  `json:"timestamp" db:"timestamp"`
 	Expires   int64  `json:"expires" db:"expires"`
@@ -43,11 +43,8 @@ func (t *Transaction) CalculateHash() []byte {
 	hasher.Write([]byte(t.From))
 	hasher.Write([]byte(t.To))
 
-	binary.BigEndian.PutUint64(buf, t.Amount)
-	hasher.Write(buf)
-
-	binary.BigEndian.PutUint64(buf, t.Fee)
-	hasher.Write(buf)
+	binary.Write(hasher, binary.BigEndian, t.Amount)
+	binary.Write(hasher, binary.BigEndian, t.Fee)
 
 	binary.BigEndian.PutUint64(buf, t.Nonce)
 	hasher.Write(buf)
