@@ -20,7 +20,7 @@ type App struct {
 	log        *slog.Logger
 	mempoolAPI string
 	apiPort    string
-	rpcClient  proto.TransactionServiceClient
+	rpcClient  proto.MempoolServiceClient
 }
 
 func main() {
@@ -52,12 +52,12 @@ func httpServer(mux *http.ServeMux, port string) *server.Server {
 		WithRouter(mux)
 }
 
-func rpcClient(apiUrl string) (*grpc.ClientConn, proto.TransactionServiceClient, error) {
+func rpcClient(apiUrl string) (*grpc.ClientConn, proto.MempoolServiceClient, error) {
 	conn, err := grpc.NewClient(apiUrl, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	client := proto.NewTransactionServiceClient(conn)
+	client := proto.NewMempoolServiceClient(conn)
 	return conn, client, nil
 }

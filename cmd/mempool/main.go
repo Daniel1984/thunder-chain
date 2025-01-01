@@ -53,7 +53,7 @@ func main() {
 	}
 }
 
-func serve(port string, service proto.TransactionServiceServer) error {
+func serve(port string, service proto.MempoolServiceServer) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return fmt.Errorf("failed starting net listener %w", err)
@@ -62,7 +62,7 @@ func serve(port string, service proto.TransactionServiceServer) error {
 	server := grpc.NewServer()
 	reflection.Register(server)
 
-	proto.RegisterTransactionServiceServer(server, service)
+	proto.RegisterMempoolServiceServer(server, service)
 
 	return server.Serve(listener)
 }

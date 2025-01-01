@@ -47,8 +47,8 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 		Expires:   txn.Expires,
 	}
 
-	pld := &proto.CreateTransactionRequest{Transaction: &protoTxn}
-	createResp, err := a.rpcClient.CreateTransaction(r.Context(), pld)
+	pld := &proto.CreateMempoolRequest{Transaction: &protoTxn}
+	createResp, err := a.rpcClient.CreateMempool(r.Context(), pld)
 	if err != nil {
 		a.log.Error("could not push transaction to mempool", "txHash", txn.Hash, "err", err)
 		http.Error(w, "could not create transaction", http.StatusBadRequest)
