@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package statechange;
+option go_package = "./proto";
+
+import "mempool.proto";  // Import the mempool proto file
+
+message StateChange {
+  string block_hash = 1;
+  uint64 block_height = 2;
+  int64 timestamp = 3;
+  repeated mempool.Transaction transactions = 4;
+}
+
+message CreateStateChangeRequest {
+  StateChange statechange = 1;
+}
+
+message CreateStateChangeResponse {
+  string message = 1;
+}
+
+service StateChangeService {
+  rpc CreateStateChange(CreateStateChangeRequest) returns (CreateStateChangeResponse);
+}

@@ -64,7 +64,7 @@ func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
 	return db, nil
 }
 
-func serve(port string, service proto.BalanceChangeServiceServer) error {
+func serve(port string, service proto.StateChangeServiceServer) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return fmt.Errorf("failed starting net listener %w", err)
@@ -73,7 +73,7 @@ func serve(port string, service proto.BalanceChangeServiceServer) error {
 	server := grpc.NewServer()
 	reflection.Register(server)
 
-	proto.RegisterBalanceChangeServiceServer(server, service)
+	proto.RegisterStateChangeServiceServer(server, service)
 
 	return server.Serve(listener)
 }

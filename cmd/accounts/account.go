@@ -14,7 +14,7 @@ import (
 )
 
 type App struct {
-	proto.UnimplementedBalanceChangeServiceServer
+	proto.UnimplementedStateChangeServiceServer
 	log                *slog.Logger
 	apiPort            string
 	db                 *db.DB
@@ -22,14 +22,14 @@ type App struct {
 	balanceChangeModel *balancechange.Model
 }
 
-func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalanceChangeRequest) (*proto.CreateBalanceChangeResponse, error) {
-	bc := in.GetBalancechange()
-	if bc == nil {
+func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateStateChangeRequest) (*proto.CreateStateChangeResponse, error) {
+	sc := in.GetStatechange()
+	if sc == nil {
 		app.log.Info("missing balance change data")
 		return nil, status.Error(codes.Aborted, "missing balance change data")
 	}
 
-	txs := bc.GetTransactions()
+	txs := sc.GetTransactions()
 	if txs == nil {
 		app.log.Info("balance change missing transactions")
 		return nil, status.Error(codes.Aborted, "balance change missing transactions")
@@ -65,8 +65,8 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 			NewBalance:      fromAcc.Balance - tx.GetAmount() - tx.GetFee(),
 			ChangeAmount:    -(tx.GetAmount() + tx.GetFee()),
 			AccountID:       fromAcc.ID,
-			BlockHeight:     bc.GetBlockHeight(),
-			BlockHash:       bc.GetBlockHash(),
+			BlockHeight:     sc.GetBlockHeight(),
+			BlockHash:       sc.GetBlockHash(),
 			TxHash:          tx.GetHash(),
 			Timestamp:       tx.GetTimestamp(),
 		}
@@ -92,8 +92,8 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 			NewBalance:      toAcc.Balance + tx.GetAmount(),
 			ChangeAmount:    tx.GetAmount(),
 			AccountID:       toAcc.ID,
-			BlockHeight:     bc.GetBlockHeight(),
-			BlockHash:       bc.GetBlockHash(),
+			BlockHeight:     sc.GetBlockHeight(),
+			BlockHash:       sc.GetBlockHash(),
 			TxHash:          tx.GetHash(),
 			Timestamp:       tx.GetTimestamp(),
 		}
@@ -120,5 +120,5 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 		return nil, status.Error(codes.Internal, "failed updating block state")
 	}
 
-	return &proto.CreateBalanceChangeResponse{Success: true, Message: "STATE_UPDATED"}, nil
+	return &proto.CreateStateChangeResponse{Message: "STATE_UPDATED"}, nil
 }
