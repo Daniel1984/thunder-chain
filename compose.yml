@@ -69,3 +69,26 @@ services:
         - action: rebuild
           path: ./proto
           target: ./app
+  accounts:
+    build:
+      dockerfile: ./cmd/accounts/Dockerfile
+      context: .
+    ports:
+      - "8383:8383"
+    environment:
+      - API_PORT=8383
+    volumes:
+      - ./data:/data
+    develop:
+      watch:
+        - action: rebuild
+          path: ./cmd/accounts
+          target: ./app
+          ignore:
+            - .git/
+        - action: rebuild
+          path: ./internal
+          target: ./app
+        - action: rebuild
+          path: ./proto
+          target: ./app

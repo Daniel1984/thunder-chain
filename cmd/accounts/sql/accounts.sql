@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 ) STRICT;
 
 -- Trigger to update the timestamp
-CREATE TRIGGER update_accounts_timestamp 
+CREATE TRIGGER IF NOT EXISTS update_accounts_timestamp
 AFTER UPDATE ON accounts
 BEGIN
   UPDATE accounts SET timestamp = strftime('%s', 'now') WHERE id = NEW.id;
