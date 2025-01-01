@@ -3,7 +3,7 @@ syntax = "proto3";
 package block;
 option go_package = "./proto";
 
-import "transaction.proto";  // Import the transaction proto file
+import "mempool.proto";  // Import the mempool proto file
 
 message Block {
   string hash = 1;
@@ -12,7 +12,7 @@ message Block {
   int64 timestamp = 4;
   uint64 height = 5;
   uint64 nonce = 6;
-  repeated transaction.Transaction transactions = 7;
+  repeated mempool.Transaction transactions = 7;
 }
 
 message CreateBlockRequest {

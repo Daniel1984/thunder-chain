@@ -3,13 +3,13 @@ syntax = "proto3";
 package balancechange;
 option go_package = "./proto";
 
-import "transaction.proto";  // Import the transaction proto file
+import "mempool.proto";  // Import the mempool proto file
 
 message BalanceChange {
   string block_hash = 1;
   uint64 block_height = 2;
   int64 timestamp = 3;
-  repeated transaction.Transaction transactions = 4;
+  repeated mempool.Transaction transactions = 4;
 }
 
 message CreateBalanceChangeRequest {
