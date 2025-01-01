@@ -41,21 +41,22 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 
 	dbTx, err := app.db.WriteDB.BeginTxx(ctx, nil)
 	if err != nil {
-		app.log.Info("failed to begin DB transaction", "err", err)
+		app.log.Error("failed to begin DB transaction", "err", err)
 		return nil, status.Error(codes.Internal, "failed to begin DB transaction")
 	}
-	defer dbTx.Rollback()
 
 	for _, tx := range txs {
 		fromAcc, err := app.accModel.UpsertNoUpdate(ctx, dbTx, tx.GetFromAddr())
 		if err != nil {
-			app.log.Info("failed to get src account", "err", err)
+			app.log.Error("failed to get src account", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to get src account")
 		}
 
 		toAcc, err := app.accModel.UpsertNoUpdate(ctx, dbTx, tx.GetToAddr())
 		if err != nil {
-			app.log.Info("failed to get dest account", "err", err)
+			app.log.Error("failed to get dest account", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to get dest account")
 		}
 
@@ -71,7 +72,8 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 		}
 
 		if err := app.balanceChangeModel.Crete(ctx, dbTx, fromAccBc); err != nil {
-			app.log.Info("failed to create source acc balance change record", "err", err)
+			app.log.Error("failed to create source acc balance change record", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to create source acc balance change record")
 		}
 
@@ -80,7 +82,8 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 			Balance: fromAccBc.NewBalance,
 			Nonce:   fromAcc.Nonce + 1,
 		}); err != nil {
-			app.log.Info("failed to update source account balance", "err", err)
+			app.log.Error("failed to update source account balance", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to update source account balance")
 		}
 
@@ -96,7 +99,8 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 		}
 
 		if err := app.balanceChangeModel.Crete(ctx, dbTx, toAccBc); err != nil {
-			app.log.Info("failed to create destination acc balance change record", "err", err)
+			app.log.Error("failed to create destination acc balance change record", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to create destination acc balance change record")
 		}
 
@@ -105,9 +109,15 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateBalance
 			Balance: toAccBc.NewBalance,
 			Nonce:   toAcc.Nonce + 1,
 		}); err != nil {
-			app.log.Info("failed to update destination account balance", "err", err)
+			app.log.Error("failed to update destination account balance", "err", err)
+			dbTx.Rollback()
 			return nil, status.Error(codes.Internal, "failed to update destination account balance")
 		}
+	}
+
+	if err := dbTx.Commit(); err != nil {
+		app.log.Error("failed updating block state", "err", err)
+		return nil, status.Error(codes.Internal, "failed updating block state")
 	}
 
 	return &proto.CreateBalanceChangeResponse{Success: true, Message: "STATE_UPDATED"}, nil
