@@ -1,145 +1,192 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"strings"
+
 	"com.perkunas/internal/models/block"
 	"com.perkunas/internal/models/transaction"
+	"com.perkunas/proto"
 )
 
-type Miner struct {
-	// mempool    MempoolClient // gRPC client to fetch pending transactions
-	// stateDB    StateDB       // To verify transaction validity
-	// blockDB    BlockDB       // To access/store blocks
-	difficulty uint64 // Current mining difficulty
-	reward     uint64 // Block reward amount
-}
-
 type MiningCandidate struct {
-	PrevBlock  *block.Block
+	PrevBlock  *proto.Block
 	Txs        []*transaction.Transaction
 	Difficulty uint64
 	Nonce      uint64
 	Timestamp  int64
 }
 
-// func (m *Miner) Start(ctx context.Context) error {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return nil
+func (app *App) Start(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
 
-// 		default:
-// 			// 1. Get pending transactions from mempool
-// 			txs, err := m.mempool.GetPendingTransactions(ctx)
-// 			if err != nil {
-// 				continue
-// 			}
+		default:
+			// 1. get pending transactions from mempool
+			txsRes, err := app.mempoolRPC.PendingTransactions(ctx, nil)
+			if err != nil {
+				app.log.Error("failed getting pending transactions", "err", err)
+				continue
+			}
 
-// 			// 2. Get latest block
-// 			prevBlock, err := m.blockDB.GetLatestBlock(ctx)
-// 			if err != nil {
-// 				continue
-// 			}
+			txs := txsRes.GetTransactions()
+			if len(txs) == 0 {
+				app.log.Info("notransactions in mempool")
+				continue
+			}
 
-// 			// 3. Create candidate block
-// 			candidate := &MiningCandidate{
-// 				PrevBlock:  prevBlock,
-// 				Timestamp:  time.Now().Unix(),
-// 				Txs:        txs,
-// 				Difficulty: m.getCurrentDifficulty(),
-// 			}
+			// 2. get latest block
+			prevBlock, err := app.blocksRPC.GetLatestBlock(ctx, nil)
+			if err != nil {
+				app.log.Error("failed gettin latest block", "err", err)
+				continue
+			}
 
-// 			// 4. Mine block (find valid nonce)
-// 			newBlock, err := m.mineBlock(ctx, candidate)
-// 			if err != nil {
-// 				continue
-// 			}
+			// 3. create candidate block
+			candidate := &MiningCandidate{
+				PrevBlock: prevBlock.GetBlock(),
+				Txs:       transaction.FromProtoTxs(txs),
+				// Difficulty: app.getCurrentDifficulty(),
+				// Timestamp:  time.Now().Unix(),
+			}
 
-// 			// 5. Submit mined block
-// 			if err := m.submitBlock(ctx, newBlock); err != nil {
-// 				continue
-// 			}
-// 		}
-// 	}
-// }
+			// 4. mine block (find valid nonce)
+			newBlock, err := app.mineBlock(ctx, candidate)
+			if err != nil {
+				app.log.Error("failed to mine block", "err", err)
+				continue
+			}
 
-// func (m *Miner) mineBlock(ctx context.Context, candidate *MiningCandidate) (*block.Block, error) {
-// 	// 1. Validate transactions
-// 	validTxs, err := m.validateTransactions(ctx, candidate.Txs)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+			// 5. submit mined block
+			if err := app.submitBlock(ctx, newBlock); err != nil {
+				app.log.Error("failed to submit mined block", "err", err)
+			}
+		}
+	}
+}
 
-// 	// 2. Create block with mining reward
-// 	block := &block.Block{
-// 		PrevHash:     candidate.PrevBlock.Hash,
-// 		Height:       candidate.PrevBlock.Height + 1,
-// 		Timestamp:    candidate.Timestamp,
-// 		Difficulty:   candidate.Difficulty,
-// 		Transactions: append(validTxs, createRewardTx(m.reward)),
-// 	}
+func (app *App) mineBlock(ctx context.Context, candidate *MiningCandidate) (*block.Block, error) {
+	// 1. validate transactions
+	validTxs := app.validateTransactions(ctx, candidate.Txs)
+	if len(validTxs) == 0 {
+		return nil, errors.New("no valid transactions found")
+	}
 
-// 	// 3. Find valid nonce (Proof of Work)
-// 	for nonce := uint64(0); ; nonce++ {
-// 		select {
-// 		case <-ctx.Done():
-// 			return nil, ctx.Err()
-// 		default:
-// 			block.Nonce = nonce
-// 			block.CalculateHash()
+	// 2. create block TODO: with mining reward
+	block := &block.Block{
+		PrevHash:     candidate.PrevBlock.Hash,
+		Height:       candidate.PrevBlock.Height + 1,
+		Timestamp:    candidate.Timestamp,
+		Transactions: validTxs,
+		// Difficulty:   candidate.Difficulty,
+		// Transactions: append(validTxs, createRewardTx(app.reward)),
+	}
 
-// 			if isHashValid(block.Hash, block.Difficulty) {
-// 				return block, nil
-// 			}
-// 		}
-// 	}
-// }
+	// 3. find valid nonce (Proof of Work)
+	for nonce := uint64(0); ; nonce++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			block.Nonce = nonce
+			hash, err := block.CalculateHash()
+			if err != nil {
+				return nil, err
+			}
+			block.Hash = hash
 
-// func (m *Miner) submitBlock(ctx context.Context, block *block.Block) error {
-// 	// 1. Save block to database
-// 	if err := m.blockDB.SaveBlock(ctx, block); err != nil {
-// 		return err
-// 	}
+			if isHashValid(block.Hash, block.Difficulty) {
+				return block, nil
+			}
+		}
+	}
+}
 
-// 	// 2. Update account balances
-// 	if err := m.updateState(ctx, block); err != nil {
-// 		return err
-// 	}
+func (app *App) validateTransactions(ctx context.Context, txs []*transaction.Transaction) []*transaction.Transaction {
+	validTxs := make([]*transaction.Transaction, 0)
 
-// 	// 3. Remove mined transactions from mempool
-// 	if err := m.mempool.RemoveTransactions(ctx, block.Transactions); err != nil {
-// 		return err
-// 	}
+	// track used nonces to prevent double-spending within same block
+	usedNonces := make(map[string]uint64) // address -> nonce
 
-// 	return nil
-// }
+	for _, tx := range txs {
+		// skip invalid transactions but continue processing others
+		if err := tx.Verify(); err != nil {
+			app.log.Warn("invalid transaction skipped", "hash", tx.Hash, "error", err)
+			continue
+		}
 
-// func (m *Miner) updateState(ctx context.Context, block *block.Block) error {
-// 	// Begin transaction
-// 	tx, err := m.stateDB.BeginTx(ctx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer tx.Rollback()
+		// check sender balance
+		fromAccountRes, err := app.stateRPC.GetAccountByAddress(ctx, &proto.GetAccountByAddressRequest{Address: tx.From})
+		if err != nil {
+			app.log.Error("failed getting account by address", "address", tx.From, "err", err)
+			continue
+		}
 
-// 	// Apply all transactions
-// 	for _, transaction := range block.Transactions {
-// 		// Deduct from sender
-// 		if err := tx.UpdateBalance(transaction.From, -transaction.Amount); err != nil {
-// 			return err
-// 		}
-// 		// Add to recipient
-// 		if err := tx.UpdateBalance(transaction.To, transaction.Amount); err != nil {
-// 			return err
-// 		}
-// 	}
+		fromAcc := fromAccountRes.GetAccount()
+		if fromAcc == nil {
+			app.log.Info("account not found by address", "addr", tx.From)
+			continue
+		}
 
-// 	return tx.Commit()
-// }
+		if fromAcc.GetBalance() < tx.Amount+tx.Fee {
+			app.log.Info("insufficient balance", "addr", tx.From, "balance", fromAcc.GetBalance(), "amount", tx.Amount+tx.Fee)
+			continue
+		}
 
-// func isHashValid(hash string, difficulty uint64) bool {
-// 	// Convert difficulty to required leading zeros
-// 	prefix := strings.Repeat("0", int(difficulty))
+		// check nonce
+		if tx.Nonce != fromAcc.GetNonce()+1 {
+			app.log.Info("invalid tx nonce", "txNonce", tx.Nonce, "accNonce", fromAcc.GetNonce()+1)
+			continue
+		}
 
-// 	// Check if hash starts with required number of zeros
-// 	return strings.HasPrefix(hash, prefix)
-// }
+		if lastNonce, exists := usedNonces[tx.From]; exists && tx.Nonce <= lastNonce {
+			app.log.Info("nonce is smaller or equal to previously used one", "txNonce", tx.Nonce, "lastUsedNonce", lastNonce)
+			continue
+		}
+
+		usedNonces[tx.From] = tx.Nonce
+		validTxs = append(validTxs, tx)
+	}
+
+	return validTxs
+}
+
+func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
+	// 1. Save block to database
+	blockPld := &proto.CreateBlockRequest{
+		Block: &proto.Block{
+			Hash:         block.Hash,
+			PrevHash:     block.PrevHash,
+			MerkleRoot:   block.MerkleRoot,
+			Height:       block.Height,
+			Nonce:        block.Nonce,
+			Transactions: transaction.ToProtoTxs(block.Transactions),
+		},
+	}
+	if _, err := app.blocksRPC.CreateBlock(ctx, blockPld); err != nil {
+		app.log.Error("failed to crete block", "err", err)
+		return err
+	}
+
+	// 2. Update account balances
+	// post to statechange RPC ?
+
+	// 3. Remove mined transactions from mempool
+	// if err := app.mempoolRPC.RemoveTransactions(ctx, block.Transactions); err != nil {
+	// 	app.log.Error("failed to clear mempool transactions", "err", err)
+	// 	return err
+	// }
+
+	return nil
+}
+
+func isHashValid(hash string, difficulty uint64) bool {
+	// Convert difficulty to required leading zeros
+	prefix := strings.Repeat("0", int(difficulty))
+
+	// Check if hash starts with required number of zeros
+	return strings.HasPrefix(hash, prefix)
+}
