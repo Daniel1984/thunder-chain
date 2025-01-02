@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 
+	"com.perkunas/proto"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -102,4 +103,23 @@ func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
 
 	tx.Signature = hex.EncodeToString(signature)
 	return nil
+}
+
+func ToProtoTxs(in []*Transaction) (out []*proto.Transaction) {
+	for _, tx := range in {
+		out = append(out, &proto.Transaction{
+			Hash:      tx.Hash,
+			FromAddr:  tx.From,
+			ToAddr:    tx.To,
+			Signature: tx.Signature,
+			Amount:    tx.Amount,
+			Fee:       tx.Fee,
+			Nonce:     tx.Nonce,
+			Data:      tx.Data,
+			Timestamp: tx.Timestamp,
+			Expires:   tx.Expires,
+		})
+	}
+
+	return out
 }
