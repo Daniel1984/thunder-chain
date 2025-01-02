@@ -9,25 +9,4 @@ CREATE TABLE IF NOT EXISTS blocks (
   transactions TEXT DEFAULT '[]' CHECK (json_valid(transactions))
 ) STRICT;
 
-CREATE INDEX IF NOT EXISTS idx_blocks_prev_hash ON blocks(prev_hash);
-
-
--- CREATE TABLE chain_metadata (
---     key TEXT PRIMARY KEY,
---     value TEXT
--- );
-
--- -- For quick header validation/synchronization
--- CREATE TABLE block_headers (
---     hash TEXT PRIMARY KEY,
---     height INTEGER UNIQUE,
---     prev_hash TEXT,
---     timestamp INTEGER
--- );
-
--- -- Optional: track forks/orphans
--- CREATE TABLE orphan_blocks (
---     hash TEXT PRIMARY KEY,
---     height INTEGER,
---     prev_hash TEXT
--- );
+CREATE INDEX IF NOT EXISTS idx_blocks_height ON blocks(height);

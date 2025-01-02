@@ -17,6 +17,7 @@ type Block struct {
 	Timestamp    int64                      `json:"timestamp" db:"timestamp"`
 	Height       uint64                     `json:"height" db:"height"`
 	Nonce        uint64                     `json:"nonce" db:"nonce"`
+	Difficulty   uint64                     `json:"difficulty" db:"difficulty"`
 	Transactions []*transaction.Transaction `json:"transactions" db:"-"`
 }
 

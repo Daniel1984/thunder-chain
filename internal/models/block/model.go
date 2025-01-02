@@ -10,7 +10,6 @@ type Model struct {
 	DB *db.DB
 }
 
-// TODO: persist transations in separate table
 func (bm *Model) Save(ctx context.Context, b BlockDB) error {
 	query := `
 		INSERT INTO blocks (hash, prev_hash, merkle_root, timestamp, height, nonce, transactions)
@@ -28,4 +27,22 @@ func (bm *Model) HasGenesisBlock(ctx context.Context) (bool, error) {
 	var count int
 	err := bm.DB.ReadDB.GetContext(ctx, &count, query, 0)
 	return count > 0, err
+}
+
+func (bm *Model) GetLatest(ctx context.Context) (Block, error) {
+	query := `
+		SELECT
+			hash,
+			prev_hash,
+			merkle_root,
+			height,
+			nonce,
+			difficulty,
+			timestamp
+		FROM blocks
+		ORDER BY height DESC LIMIT 1"
+	`
+
+	var res Block
+	return res, bm.DB.ReadDB.Get(&res, query)
 }

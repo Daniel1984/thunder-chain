@@ -72,3 +72,22 @@ func (app *App) CreateBlock(ctx context.Context, in *proto.CreateBlockRequest) (
 
 	return &proto.CreateBlockResponse{Hash: pld.Hash, Height: pld.Height}, nil
 }
+
+func (app *App) GetLatestBlock(ctx context.Context, in *proto.GetLatestBlockRequest) (*proto.GetLatestBlockResponse, error) {
+	block, err := app.blockModel.GetLatest(ctx)
+	if err != nil {
+		app.log.Info("failed getting latest block data", "err", err)
+		return nil, status.Error(codes.Internal, "failed getting latest block data")
+	}
+
+	return &proto.GetLatestBlockResponse{
+		Block: &proto.Block{
+			Hash:       block.Hash,
+			PrevHash:   block.PrevHash,
+			MerkleRoot: block.MerkleRoot,
+			Height:     block.Height,
+			Nonce:      block.Nonce,
+			Timestamp:  block.Timestamp,
+		},
+	}, nil
+}
