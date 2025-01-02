@@ -123,3 +123,22 @@ func ToProtoTxs(in []*Transaction) (out []*proto.Transaction) {
 
 	return out
 }
+
+func FromProtoTxs(in []*proto.Transaction) (out []*Transaction) {
+	for _, tx := range in {
+		out = append(out, &Transaction{
+			Hash:      tx.Hash,
+			From:      tx.FromAddr,
+			To:        tx.ToAddr,
+			Signature: tx.Signature,
+			Amount:    tx.Amount,
+			Fee:       tx.Fee,
+			Nonce:     tx.Nonce,
+			Data:      tx.Data,
+			Timestamp: tx.Timestamp,
+			Expires:   tx.Expires,
+		})
+	}
+
+	return out
+}
