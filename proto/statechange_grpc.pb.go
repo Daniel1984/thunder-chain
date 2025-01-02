@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StateChangeService_CreateStateChange_FullMethodName = "/statechange.StateChangeService/CreateStateChange"
+	StateChangeService_CreateStateChange_FullMethodName   = "/statechange.StateChangeService/CreateStateChange"
+	StateChangeService_GetAccountByAddress_FullMethodName = "/statechange.StateChangeService/GetAccountByAddress"
 )
 
 // StateChangeServiceClient is the client API for StateChangeService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StateChangeServiceClient interface {
 	CreateStateChange(ctx context.Context, in *CreateStateChangeRequest, opts ...grpc.CallOption) (*CreateStateChangeResponse, error)
+	GetAccountByAddress(ctx context.Context, in *GetAccountByAddressRequest, opts ...grpc.CallOption) (*GetAccountByAddressResponse, error)
 }
 
 type stateChangeServiceClient struct {
@@ -46,11 +48,21 @@ func (c *stateChangeServiceClient) CreateStateChange(ctx context.Context, in *Cr
 	return out, nil
 }
 
+func (c *stateChangeServiceClient) GetAccountByAddress(ctx context.Context, in *GetAccountByAddressRequest, opts ...grpc.CallOption) (*GetAccountByAddressResponse, error) {
+	out := new(GetAccountByAddressResponse)
+	err := c.cc.Invoke(ctx, StateChangeService_GetAccountByAddress_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StateChangeServiceServer is the server API for StateChangeService service.
 // All implementations must embed UnimplementedStateChangeServiceServer
 // for forward compatibility
 type StateChangeServiceServer interface {
 	CreateStateChange(context.Context, *CreateStateChangeRequest) (*CreateStateChangeResponse, error)
+	GetAccountByAddress(context.Context, *GetAccountByAddressRequest) (*GetAccountByAddressResponse, error)
 	mustEmbedUnimplementedStateChangeServiceServer()
 }
 
@@ -60,6 +72,9 @@ type UnimplementedStateChangeServiceServer struct {
 
 func (UnimplementedStateChangeServiceServer) CreateStateChange(context.Context, *CreateStateChangeRequest) (*CreateStateChangeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateStateChange not implemented")
+}
+func (UnimplementedStateChangeServiceServer) GetAccountByAddress(context.Context, *GetAccountByAddressRequest) (*GetAccountByAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountByAddress not implemented")
 }
 func (UnimplementedStateChangeServiceServer) mustEmbedUnimplementedStateChangeServiceServer() {}
 
@@ -92,6 +107,24 @@ func _StateChangeService_CreateStateChange_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StateChangeService_GetAccountByAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountByAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateChangeServiceServer).GetAccountByAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StateChangeService_GetAccountByAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateChangeServiceServer).GetAccountByAddress(ctx, req.(*GetAccountByAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StateChangeService_ServiceDesc is the grpc.ServiceDesc for StateChangeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -102,6 +135,10 @@ var StateChangeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateStateChange",
 			Handler:    _StateChangeService_CreateStateChange_Handler,
+		},
+		{
+			MethodName: "GetAccountByAddress",
+			Handler:    _StateChangeService_GetAccountByAddress_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
