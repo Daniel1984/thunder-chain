@@ -22,6 +22,18 @@ type App struct {
 	balanceChangeModel *balancechange.Model
 }
 
+func (app *App) GetAccountByAddress(ctx context.Context, in *proto.GetAccountByAddressRequest) (*proto.GetAccountByAddressResponse, error) {
+	acc, err := app.accModel.Get(ctx, in.GetAddress())
+	if err != nil {
+		app.log.Error("failed to get account", "err", err, "addr", in.GetAddress())
+		return nil, status.Error(codes.Internal, "failed to get account")
+	}
+
+	return &proto.GetAccountByAddressResponse{
+		Account: acc.ToProto(),
+	}, nil
+}
+
 func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateStateChangeRequest) (*proto.CreateStateChangeResponse, error) {
 	sc := in.GetStatechange()
 	if sc == nil {
