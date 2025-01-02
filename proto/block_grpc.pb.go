@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	BlockService_CreateBlock_FullMethodName = "/block.BlockService/CreateBlock"
+	BlockService_CreateBlock_FullMethodName    = "/block.BlockService/CreateBlock"
+	BlockService_GetLatestBlock_FullMethodName = "/block.BlockService/GetLatestBlock"
 )
 
 // BlockServiceClient is the client API for BlockService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BlockServiceClient interface {
 	CreateBlock(ctx context.Context, in *CreateBlockRequest, opts ...grpc.CallOption) (*CreateBlockResponse, error)
+	GetLatestBlock(ctx context.Context, in *GetLatestBlockRequest, opts ...grpc.CallOption) (*GetLatestBlockResponse, error)
 }
 
 type blockServiceClient struct {
@@ -46,11 +48,21 @@ func (c *blockServiceClient) CreateBlock(ctx context.Context, in *CreateBlockReq
 	return out, nil
 }
 
+func (c *blockServiceClient) GetLatestBlock(ctx context.Context, in *GetLatestBlockRequest, opts ...grpc.CallOption) (*GetLatestBlockResponse, error) {
+	out := new(GetLatestBlockResponse)
+	err := c.cc.Invoke(ctx, BlockService_GetLatestBlock_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockServiceServer is the server API for BlockService service.
 // All implementations must embed UnimplementedBlockServiceServer
 // for forward compatibility
 type BlockServiceServer interface {
 	CreateBlock(context.Context, *CreateBlockRequest) (*CreateBlockResponse, error)
+	GetLatestBlock(context.Context, *GetLatestBlockRequest) (*GetLatestBlockResponse, error)
 	mustEmbedUnimplementedBlockServiceServer()
 }
 
@@ -60,6 +72,9 @@ type UnimplementedBlockServiceServer struct {
 
 func (UnimplementedBlockServiceServer) CreateBlock(context.Context, *CreateBlockRequest) (*CreateBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBlock not implemented")
+}
+func (UnimplementedBlockServiceServer) GetLatestBlock(context.Context, *GetLatestBlockRequest) (*GetLatestBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLatestBlock not implemented")
 }
 func (UnimplementedBlockServiceServer) mustEmbedUnimplementedBlockServiceServer() {}
 
@@ -92,6 +107,24 @@ func _BlockService_CreateBlock_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockService_GetLatestBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLatestBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockServiceServer).GetLatestBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockService_GetLatestBlock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockServiceServer).GetLatestBlock(ctx, req.(*GetLatestBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockService_ServiceDesc is the grpc.ServiceDesc for BlockService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -102,6 +135,10 @@ var BlockService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateBlock",
 			Handler:    _BlockService_CreateBlock_Handler,
+		},
+		{
+			MethodName: "GetLatestBlock",
+			Handler:    _BlockService_GetLatestBlock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

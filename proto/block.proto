@@ -24,6 +24,13 @@ message CreateBlockResponse {
   uint64 height = 2;
 }
 
+message GetLatestBlockRequest {}
+
+message GetLatestBlockResponse {
+  Block block = 1;
+}
+
 service BlockService {
   rpc CreateBlock(CreateBlockRequest) returns (CreateBlockResponse);
+  rpc GetLatestBlock(GetLatestBlockRequest) returns (GetLatestBlockResponse);
 }

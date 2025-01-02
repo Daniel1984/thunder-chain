@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	MempoolService_CreateMempool_FullMethodName = "/mempool.MempoolService/CreateMempool"
-	MempoolService_DeleteMempool_FullMethodName = "/mempool.MempoolService/DeleteMempool"
+	MempoolService_CreateMempool_FullMethodName       = "/mempool.MempoolService/CreateMempool"
+	MempoolService_DeleteMempool_FullMethodName       = "/mempool.MempoolService/DeleteMempool"
+	MempoolService_PendingTransactions_FullMethodName = "/mempool.MempoolService/PendingTransactions"
 )
 
 // MempoolServiceClient is the client API for MempoolService service.
@@ -29,6 +30,7 @@ const (
 type MempoolServiceClient interface {
 	CreateMempool(ctx context.Context, in *CreateMempoolRequest, opts ...grpc.CallOption) (*CreateMempoolResponse, error)
 	DeleteMempool(ctx context.Context, in *DeleteMempoolRequest, opts ...grpc.CallOption) (*DeleteMempoolResponse, error)
+	PendingTransactions(ctx context.Context, in *PendingTransactionsRequest, opts ...grpc.CallOption) (*PendingTransactionsResponse, error)
 }
 
 type mempoolServiceClient struct {
@@ -57,12 +59,22 @@ func (c *mempoolServiceClient) DeleteMempool(ctx context.Context, in *DeleteMemp
 	return out, nil
 }
 
+func (c *mempoolServiceClient) PendingTransactions(ctx context.Context, in *PendingTransactionsRequest, opts ...grpc.CallOption) (*PendingTransactionsResponse, error) {
+	out := new(PendingTransactionsResponse)
+	err := c.cc.Invoke(ctx, MempoolService_PendingTransactions_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MempoolServiceServer is the server API for MempoolService service.
 // All implementations must embed UnimplementedMempoolServiceServer
 // for forward compatibility
 type MempoolServiceServer interface {
 	CreateMempool(context.Context, *CreateMempoolRequest) (*CreateMempoolResponse, error)
 	DeleteMempool(context.Context, *DeleteMempoolRequest) (*DeleteMempoolResponse, error)
+	PendingTransactions(context.Context, *PendingTransactionsRequest) (*PendingTransactionsResponse, error)
 	mustEmbedUnimplementedMempoolServiceServer()
 }
 
@@ -75,6 +87,9 @@ func (UnimplementedMempoolServiceServer) CreateMempool(context.Context, *CreateM
 }
 func (UnimplementedMempoolServiceServer) DeleteMempool(context.Context, *DeleteMempoolRequest) (*DeleteMempoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteMempool not implemented")
+}
+func (UnimplementedMempoolServiceServer) PendingTransactions(context.Context, *PendingTransactionsRequest) (*PendingTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PendingTransactions not implemented")
 }
 func (UnimplementedMempoolServiceServer) mustEmbedUnimplementedMempoolServiceServer() {}
 
@@ -125,6 +140,24 @@ func _MempoolService_DeleteMempool_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MempoolService_PendingTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PendingTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MempoolServiceServer).PendingTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MempoolService_PendingTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MempoolServiceServer).PendingTransactions(ctx, req.(*PendingTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MempoolService_ServiceDesc is the grpc.ServiceDesc for MempoolService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,6 +172,10 @@ var MempoolService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteMempool",
 			Handler:    _MempoolService_DeleteMempool_Handler,
+		},
+		{
+			MethodName: "PendingTransactions",
+			Handler:    _MempoolService_PendingTransactions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

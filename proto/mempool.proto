@@ -32,7 +32,14 @@ message DeleteMempoolResponse {
   bool success = 1;
 }
 
+message PendingTransactionsRequest {}
+
+message PendingTransactionsResponse {
+  repeated Transaction transactions = 1;
+}
+
 service MempoolService {
   rpc CreateMempool(CreateMempoolRequest) returns (CreateMempoolResponse) {}
   rpc DeleteMempool(DeleteMempoolRequest) returns (DeleteMempoolResponse) {}
+  rpc PendingTransactions(PendingTransactionsRequest) returns (PendingTransactionsResponse) {}
 }

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package config;
+option go_package = "./proto";
+
+message ChainConfig {
+    uint64 initial_difficulty = 1;
+    uint64 block_time = 2;
+    uint64 difficulty_adjust = 3;
+    uint64 max_tx_per_block = 4;
+    uint64 block_reward = 5;
+}
+
+message GetChainConfigRequest {}
+
+message GetChainConfigResponse {
+    ChainConfig config = 1;
+}
+
+message GetCurrentDifficultyRequest {}
+
+message GetCurrentDifficultyResponse {
+    uint64 difficulty = 1;
+}
+
+service ConfigService {
+    rpc GetChainConfig(GetChainConfigRequest) returns (GetChainConfigResponse);
+    rpc GetCurrentDifficulty(GetCurrentDifficultyRequest) returns (GetCurrentDifficultyResponse);
+}
