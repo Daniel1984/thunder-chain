@@ -16,7 +16,7 @@ func (a *App) createTransaction(w http.ResponseWriter, r *http.Request) {
 	var txn transaction.Transaction
 	if err := json.NewDecoder(r.Body).Decode(&txn); err != nil {
 		a.log.Error("could not read request body", "err", err)
-		http.Error(w, "most likely invalid request payload", http.StatusBadRequest)
+		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
