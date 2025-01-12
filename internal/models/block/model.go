@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"com.perkunas/internal/db"
+	"github.com/jmoiron/sqlx"
 )
 
 type Model struct {
@@ -16,6 +17,15 @@ func (bm *Model) Save(ctx context.Context, b BlockDB) error {
 		VALUES (:hash, :prev_hash, :merkle_root, :timestamp, :height, :nonce, :transactions)
 	`
 	_, err := bm.DB.WriteDB.NamedExecContext(ctx, query, b)
+	return err
+}
+
+func (bm *Model) SaveWithTX(ctx context.Context, db *sqlx.Tx, b BlockDB) error {
+	query := `
+		INSERT INTO blocks (hash, prev_hash, merkle_root, timestamp, height, nonce, transactions)
+		VALUES (:hash, :prev_hash, :merkle_root, :timestamp, :height, :nonce, :transactions)
+	`
+	_, err := db.NamedExecContext(ctx, query, b)
 	return err
 }
 
