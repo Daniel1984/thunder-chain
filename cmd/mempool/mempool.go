@@ -17,7 +17,7 @@ type Mempool struct {
 	apiPort string
 }
 
-func (mp *Mempool) CreateTransaction(ctx context.Context, in *proto.CreateMempoolRequest) (*proto.CreateMempoolResponse, error) {
+func (mp *Mempool) CreateMempool(ctx context.Context, in *proto.CreateMempoolRequest) (*proto.CreateMempoolResponse, error) {
 	tx := in.GetTransaction()
 	if tx == nil {
 		mp.log.Error("request payload missing transaction")
