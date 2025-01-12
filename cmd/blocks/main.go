@@ -12,6 +12,7 @@ import (
 	"com.perkunas/internal/db"
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/models/block"
+	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -26,19 +27,22 @@ var genesisJson string
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	log := logger.WithJSONFormat().With(slog.String("scope", "block-svc"))
 
-	app := &App{
-		log: logger.WithJSONFormat().With(slog.String("scope", "block-svc")),
-	}
-
-	blocksDB, err := dbConnect(ctx, "blocks.db", blocksSql)
+	db, err := dbConnect(ctx, "blocks.db", blocksSql)
 	if err != nil {
-		app.log.Error("failed connecting to blocks.db", "err", err)
+		log.Error("failed connecting to blocks.db", "err", err)
 		os.Exit(1)
 	}
-	defer blocksDB.Close()
+	defer db.Close()
 
-	app.blockModel = block.Model{DB: blocksDB}
+	app := &App{
+		log:          log,
+		blockModel:   block.Model{DB: db},
+		receiptModel: receipt.Model{DB: db},
+		db:           db,
+	}
+
 	if err := app.ensureGenesisBlock(ctx); err != nil {
 		app.log.Error("create genesis block fail", "err", err)
 		os.Exit(1)
