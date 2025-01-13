@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"com.perkunas/internal/models/transaction"
@@ -50,11 +51,12 @@ func (b *Block) CalculateHash() (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-func hashPair(left, right string) (string, error) {
+func hashPair(left, right string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(left))
 	hasher.Write([]byte(right))
-	return string(hasher.Sum(nil)), nil
+	hash := hasher.Sum(nil)
+	return hex.EncodeToString(hash)
 }
 
 func (b *Block) AddTransaction(transaction *transaction.Transaction) error {
@@ -70,14 +72,15 @@ func (b *Block) AddTransaction(transaction *transaction.Transaction) error {
 
 func (b *Block) CalculateMerkleRoot() (string, error) {
 	if len(b.Transactions) == 0 {
-		return "", nil
+		return "", errors.New("no transactions to compute merkle root")
 	}
 
 	currentLevel := make([]string, 0)
 
+	// Convert transaction hashes to hex strings
 	for _, tx := range b.Transactions {
 		hash := tx.CalculateHash()
-		currentLevel = append(currentLevel, string(hash))
+		currentLevel = append(currentLevel, hex.EncodeToString(hash))
 	}
 
 	// If odd number of transactions, duplicate last one
@@ -90,15 +93,13 @@ func (b *Block) CalculateMerkleRoot() (string, error) {
 		nextLevel := make([]string, 0)
 
 		for i := 0; i < len(currentLevel); i += 2 {
-			combined, err := hashPair(currentLevel[i], currentLevel[i+1])
-			if err != nil {
-				return "", err
-			}
+			combined := hashPair(currentLevel[i], currentLevel[i+1])
 			nextLevel = append(nextLevel, combined)
 		}
 
 		currentLevel = nextLevel
 
+		// If odd number of hashes, duplicate last one
 		if len(currentLevel)%2 == 1 && len(currentLevel) > 1 {
 			currentLevel = append(currentLevel, currentLevel[len(currentLevel)-1])
 		}

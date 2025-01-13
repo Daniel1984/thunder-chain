@@ -46,18 +46,15 @@ func TestHashPair(t *testing.T) {
 	left := "hash1"
 	right := "hash2"
 
-	hash1, err := hashPair(left, right)
-	assert.NoError(t, err)
+	hash1 := hashPair(left, right)
 	assert.NotEmpty(t, hash1)
 
 	// Test consistency
-	hash2, err := hashPair(left, right)
-	assert.NoError(t, err)
+	hash2 := hashPair(left, right)
 	assert.Equal(t, hash1, hash2)
 
 	// Test different input produces different hash
-	hash3, err := hashPair(right, left)
-	assert.NoError(t, err)
+	hash3 := hashPair(right, left)
 	assert.NotEqual(t, hash1, hash3)
 }
 
@@ -83,7 +80,7 @@ func TestCalculateMerkleRoot(t *testing.T) {
 
 	// Test empty block
 	root, err := block.CalculateMerkleRoot()
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.Empty(t, root)
 
 	// Test single transaction

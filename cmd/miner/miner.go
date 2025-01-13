@@ -181,6 +181,7 @@ func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
 			Transactions: transaction.ToProtoTxs(block.Transactions),
 		},
 	}
+
 	if _, err := app.blocksRPC.CreateBlock(ctx, blockPld); err != nil {
 		app.log.Error("failed to crete block", "err", err)
 		return err
