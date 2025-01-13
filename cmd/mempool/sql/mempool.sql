@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS mempool(
   signature TEXT NOT NULL,
   fee INTEGER NOT NULL,
   amount INTEGER NOT NULL,
+  nonce INTEGER NOT NULL,
   timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
   expires INTEGER NOT NULL DEFAULT (strftime('%s', 'now') + 1500)
 );

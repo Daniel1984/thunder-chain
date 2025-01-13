@@ -66,6 +66,7 @@ func (mp *Mempool) PendingTransactions(ctx context.Context, in *proto.PendingTra
 			Signature: tx.Signature,
 			Fee:       tx.Fee,
 			Amount:    tx.Amount,
+			Nonce:     tx.Nonce,
 			Timestamp: tx.Timestamp,
 			Expires:   tx.Expires,
 		})
