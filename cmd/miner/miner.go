@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"com.perkunas/internal/models/block"
 	"com.perkunas/internal/models/transaction"
@@ -20,6 +21,7 @@ type MiningCandidate struct {
 
 func (app *App) Start(ctx context.Context) error {
 	for {
+		time.Sleep(10 * time.Second)
 		select {
 		case <-ctx.Done():
 			return nil
@@ -34,7 +36,7 @@ func (app *App) Start(ctx context.Context) error {
 
 			txs := txsRes.GetTransactions()
 			if len(txs) == 0 {
-				app.log.Info("notransactions in mempool")
+				app.log.Info("no transactions in mempool")
 				continue
 			}
 
@@ -60,10 +62,23 @@ func (app *App) Start(ctx context.Context) error {
 				continue
 			}
 
+			// maybe 5, 6 smf 7 should happen in one db transaction?
+
 			// 5. submit mined block
 			if err := app.submitBlock(ctx, newBlock); err != nil {
 				app.log.Error("failed to submit mined block", "err", err)
+				continue
 			}
+
+			// 6. update balances/state
+			if err := app.updateBalances(ctx, newBlock); err != nil {
+				app.log.Error("failed to update balannces", "err", err)
+			}
+
+			// 7. delete processed txs from mempool
+			// if err := app.deleteTxs(ctx, newBlock); err != nil {
+			// 	app.log.Error("failed to delete processed transactions", "err", err)
+			// }
 		}
 	}
 }
@@ -171,9 +186,6 @@ func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
 		return err
 	}
 
-	// 2. Update account balances
-	// post to statechange RPC ?
-
 	// 3. Remove mined transactions from mempool
 	// if err := app.mempoolRPC.RemoveTransactions(ctx, block.Transactions); err != nil {
 	// 	app.log.Error("failed to clear mempool transactions", "err", err)
@@ -181,6 +193,19 @@ func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
 	// }
 
 	return nil
+}
+
+func (app *App) updateBalances(ctx context.Context, block *block.Block) error {
+	_, err := app.stateRPC.CreateStateChange(ctx, &proto.CreateStateChangeRequest{
+		Statechange: &proto.StateChange{
+			BlockHash:    block.Hash,
+			BlockHeight:  block.Height,
+			Timestamp:    block.Timestamp,
+			Transactions: transaction.ToProtoTxs(block.Transactions),
+		},
+	})
+
+	return err
 }
 
 func isHashValid(hash string, difficulty uint64) bool {
