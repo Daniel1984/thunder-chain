@@ -31,7 +31,7 @@ type Transaction struct {
 	Signature string `json:"signature"`
 	Amount    int64  `json:"amount" db:"amount"`
 	Fee       int64  `json:"fee" db:"fee"`
-	Nonce     uint64 `json:"nonce"`
+	Nonce     uint64 `json:"nonce" db:"nonce"`
 	Timestamp int64  `json:"timestamp" db:"timestamp"`
 	Expires   int64  `json:"expires" db:"expires"`
 }
@@ -93,6 +93,11 @@ func (t *Transaction) Verify() error {
 func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
 	if privateKey == nil {
 		return ErrSigningError
+	}
+
+	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	if tx.From != address {
+		return ErrSignatureSenderMismatch
 	}
 
 	hash := crypto.Keccak256Hash(tx.CalculateHash())

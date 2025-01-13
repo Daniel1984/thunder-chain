@@ -74,19 +74,19 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Logf("::: tx :> %+v\n", tx)
-	t.Logf("::: sig raw :> %s\n", tx.Signature)
-	// t.Logf("::: sig string :> %s\n", base64.StdEncoding.EncodeToString(tx.Signature))
-	t.Logf("::: sig string :> %s\n", tx.Signature)
+	// assert.Equal(t, 1, 2)
 
 	// Test invalid hash
 	originalHash := tx.Hash
 	tx.Hash = "invalid"
 	err = tx.Verify()
-
-	// change to this when doen testing
 	assert.Equal(t, ErrInvalidHash, err)
-	// assert.NotEqual(t, ErrInvalidHash, err)
 	tx.Hash = originalHash
+
+	// Test invalid sender
+	tx.From = "0x7217d3eC0A0C357d7Dde4896094B83137c137E42"
+	err = tx.Verify()
+	assert.Equal(t, ErrSignatureSenderMismatch, err)
 
 	// Test invalid signature
 	sigBytes, _ := hex.DecodeString(tx.Signature)
@@ -94,11 +94,6 @@ func TestTransaction_SignAndVerify(t *testing.T) {
 	tx.Signature = hex.EncodeToString(sigBytes)
 	err = tx.Verify()
 	assert.Error(t, err)
-
-	// Test invalid sender
-	tx.From = "0x7217d3eC0A0C357d7Dde4896094B83137c137E42"
-	err = tx.Verify()
-	assert.Equal(t, ErrSignatureSenderMismatch, err)
 }
 
 func TestSignTransaction_InvalidKey(t *testing.T) {

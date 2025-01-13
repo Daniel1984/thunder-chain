@@ -50,7 +50,7 @@ func (bm *Model) GetLatest(ctx context.Context) (Block, error) {
 			difficulty,
 			timestamp
 		FROM blocks
-		ORDER BY height DESC LIMIT 1"
+		ORDER BY height DESC LIMIT 1
 	`
 
 	var res Block

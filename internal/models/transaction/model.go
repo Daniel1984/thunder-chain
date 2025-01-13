@@ -12,8 +12,8 @@ type Model struct {
 
 func (tm *Model) Save(ctx context.Context, tx Transaction) error {
 	query := `
-		INSERT INTO mempool (hash, from_addr, to_addr, signature, fee, amount, timestamp, expires)
-		VALUES (:hash, :from_addr, :to_addr, :signature, :fee, :amount, :timestamp, :expires)
+		INSERT INTO mempool (hash, from_addr, to_addr, signature, fee, amount, nonce, timestamp, expires)
+		VALUES (:hash, :from_addr, :to_addr, :signature, :fee, :amount, :nonce, :timestamp, :expires)
 	`
 	_, err := tm.DB.WriteDB.NamedExecContext(ctx, query, tx)
 	return err
@@ -37,6 +37,7 @@ func (tm *Model) Pending(ctx context.Context) ([]Transaction, error) {
 			signature,
 			fee,
 			amount,
+			nonce,
 			timestamp,
 			expires
 		FROM mempool
