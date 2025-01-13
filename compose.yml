@@ -92,3 +92,28 @@ services:
         - action: rebuild
           path: ./proto
           target: ./app
+  miner:
+    build:
+      dockerfile: ./cmd/miner/Dockerfile
+      context: .
+    ports:
+      - "8484:8484"
+    environment:
+      - MEMPOOL_API=mempool:8181
+      - STATE_API=accounts:8383
+      - BLOCKS_API=blocks:8282
+    volumes:
+      - ./data:/data
+    develop:
+      watch:
+        - action: rebuild
+          path: ./cmd/miner
+          target: ./app
+          ignore:
+            - .git/
+        - action: rebuild
+          path: ./internal
+          target: ./app
+        - action: rebuild
+          path: ./proto
+          target: ./app
