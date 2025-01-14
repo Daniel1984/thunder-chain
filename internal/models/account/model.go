@@ -13,14 +13,14 @@ type Model struct {
 
 func (am *Model) Upsert(ctx context.Context, db *sqlx.Tx, a Account) (Account, error) {
 	query := `
-		INSERT INTO accounts (address, balance, nonce, timestamp)
-		VALUES (:address, :balance, :nonce, :timestamp)
+		INSERT INTO accounts (address, balance, nonce)
+		VALUES (?, ?, ?)
 		ON CONFLICT (address) DO UPDATE SET balance = excluded.balance, nonce = excluded.nonce
 		RETURNING id, address, balance, nonce
 	`
 
 	var acc Account
-	if err := db.QueryRowContext(ctx, query, a).Scan(
+	if err := db.QueryRowContext(ctx, query, a.Address, a.Balance, a.Nonce).Scan(
 		&acc.ID,
 		&acc.Address,
 		&acc.Balance,
@@ -35,7 +35,7 @@ func (am *Model) Upsert(ctx context.Context, db *sqlx.Tx, a Account) (Account, e
 func (am *Model) UpsertNoUpdate(ctx context.Context, db *sqlx.Tx, addr string) (Account, error) {
 	query := `
 		INSERT INTO accounts (address)
-		VALUES (:address)
+		VALUES (?)
 		ON CONFLICT (address) DO UPDATE SET address = excluded.address
 		RETURNING id, address, balance, nonce
 	`
@@ -57,6 +57,7 @@ func (am *Model) Get(ctx context.Context, addr string) (Account, error) {
 	query := `
 		SELECT id, address, balance, nonce, timestamp
 		FROM accounts
+		WHERE address = ?
 	`
 
 	var acc Account
