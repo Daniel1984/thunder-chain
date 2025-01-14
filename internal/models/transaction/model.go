@@ -2,6 +2,8 @@ package transaction
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"com.perkunas/internal/db"
 )
@@ -19,18 +21,31 @@ func (tm *Model) Save(ctx context.Context, tx Transaction) error {
 	return err
 }
 
-func (tm *Model) Delete(ctx context.Context, hash string) error {
-	query := `
+func (tm *Model) DeleteBatch(ctx context.Context, IDs []int64) error {
+	if len(IDs) == 0 {
+		return nil
+	}
+
+	placeholders := make([]string, len(IDs))
+	args := make([]interface{}, len(IDs))
+	for i, id := range IDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
 		DELETE FROM mempool
-		WHERE hash=:hash
-	`
-	_, err := tm.DB.WriteDB.NamedExecContext(ctx, query, map[string]interface{}{"hash": hash})
+		WHERE id IN (%s)
+	`, strings.Join(placeholders, ","))
+
+	_, err := tm.DB.WriteDB.ExecContext(ctx, query, args...)
 	return err
 }
 
 func (tm *Model) Pending(ctx context.Context) ([]Transaction, error) {
 	query := `
 		SELECT
+			id,
 			hash,
 			from_addr,
 			to_addr,

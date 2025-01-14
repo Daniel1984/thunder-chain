@@ -24,6 +24,7 @@ var (
 )
 
 type Transaction struct {
+	ID        int64  `json:"id" db:"id"`
 	Hash      string `json:"hash" db:"hash"`
 	From      string `json:"from_addr" db:"from_addr"` // Sender's public key
 	To        string `json:"to_addr" db:"to_addr"`     // Recipient's public key
@@ -113,6 +114,7 @@ func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
 func ToProtoTxs(in []*Transaction) (out []*proto.Transaction) {
 	for _, tx := range in {
 		out = append(out, &proto.Transaction{
+			Id:        tx.ID,
 			Hash:      tx.Hash,
 			FromAddr:  tx.From,
 			ToAddr:    tx.To,
@@ -132,6 +134,7 @@ func ToProtoTxs(in []*Transaction) (out []*proto.Transaction) {
 func FromProtoTxs(in []*proto.Transaction) (out []*Transaction) {
 	for _, tx := range in {
 		out = append(out, &Transaction{
+			ID:        tx.Id,
 			Hash:      tx.Hash,
 			From:      tx.FromAddr,
 			To:        tx.ToAddr,
