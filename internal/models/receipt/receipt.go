@@ -24,7 +24,7 @@ func ProtoToReceipts(in []*proto.Transaction, blockHash string) []Receipt {
 			TxHash:    tx.GetHash(),
 			BlockHash: blockHash,
 			Status:    "ACCEPTED",
-			Logs:      json.RawMessage(`[]`),
+			// Logs:      json.RawMessage(`[]`),
 			// GasUsed: tx.GetGasUsed(),
 		})
 	}
