@@ -42,6 +42,7 @@ func (app *App) ensureGenesisBlock(ctx context.Context) error {
 		}
 
 		block.Hash = blockHash
+		block.TransactionsDB = "[]"
 		if err := app.blockModel.Save(ctx, block); err != nil {
 			return fmt.Errorf("unable to persist genesis block %w", err)
 		}
@@ -78,7 +79,7 @@ func (app *App) CreateBlock(ctx context.Context, in *proto.CreateBlockRequest) (
 			Height:     b.GetHeight(),
 			Nonce:      b.GetNonce(),
 		},
-		TransactionsDB: txsJson,
+		TransactionsDB: string(txsJson),
 	}
 
 	dbTx, err := app.db.WriteDB.BeginTxx(ctx, nil)
