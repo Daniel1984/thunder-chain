@@ -34,7 +34,7 @@ func (app *App) GetAccountByAddress(ctx context.Context, in *proto.GetAccountByA
 	}, nil
 }
 
-func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateStateChangeRequest) (*proto.CreateStateChangeResponse, error) {
+func (app *App) CreateStateChange(ctx context.Context, in *proto.CreateStateChangeRequest) (*proto.CreateStateChangeResponse, error) {
 	sc := in.GetStatechange()
 	if sc == nil {
 		app.log.Info("missing balance change data")
@@ -42,7 +42,7 @@ func (app *App) CreateBalanceChange(ctx context.Context, in *proto.CreateStateCh
 	}
 
 	txs := sc.GetTransactions()
-	if txs == nil {
+	if len(txs) == 0 {
 		app.log.Info("balance change missing transactions")
 		return nil, status.Error(codes.Aborted, "balance change missing transactions")
 	}
