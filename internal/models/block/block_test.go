@@ -79,8 +79,7 @@ func TestCalculateMerkleRoot(t *testing.T) {
 	block := NewBlock()
 
 	// Test empty block
-	root, err := block.CalculateMerkleRoot()
-	assert.Error(t, err)
+	root := block.CalculateMerkleRoot()
 	assert.Empty(t, root)
 
 	// Test single transaction
@@ -90,9 +89,9 @@ func TestCalculateMerkleRoot(t *testing.T) {
 		Amount:    100,
 		Timestamp: time.Now().Unix(),
 	}
-	err = block.AddTransaction(tx1)
+	err := block.AddTransaction(tx1)
 	assert.NoError(t, err)
-	root1, err := block.CalculateMerkleRoot()
+	root1 := block.CalculateMerkleRoot()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, root1)
 
@@ -105,14 +104,14 @@ func TestCalculateMerkleRoot(t *testing.T) {
 	}
 	err = block.AddTransaction(tx2)
 	assert.NoError(t, err)
-	root2, err := block.CalculateMerkleRoot()
+	root2 := block.CalculateMerkleRoot()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, root2)
 	assert.NotEqual(t, root1, root2)
 
 	// Test merkle root changes with transaction modification
 	block.Transactions[0].Amount = 300
-	root3, err := block.CalculateMerkleRoot()
+	root3 := block.CalculateMerkleRoot()
 	assert.NoError(t, err)
 	assert.NotEqual(t, root2, root3)
 }

@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"time"
 
 	"com.perkunas/internal/models/transaction"
@@ -24,7 +22,7 @@ type Block struct {
 
 type BlockDB struct {
 	Block
-	TransactionsDB json.RawMessage `json:"transactionsdb" db:"transactions"`
+	TransactionsDB string `json:"transactionsdb" db:"transactions"`
 }
 
 func NewBlock() *Block {
@@ -35,11 +33,7 @@ func NewBlock() *Block {
 }
 
 func (b *Block) CalculateHash() (string, error) {
-	merkleRoot, err := b.CalculateMerkleRoot()
-	if err != nil {
-		return "", err
-	}
-	b.MerkleRoot = merkleRoot
+	b.MerkleRoot = b.CalculateMerkleRoot()
 
 	hasher := sha256.New()
 	hasher.Write([]byte(b.PrevHash))
@@ -61,18 +55,13 @@ func hashPair(left, right string) string {
 
 func (b *Block) AddTransaction(transaction *transaction.Transaction) error {
 	b.Transactions = append(b.Transactions, transaction)
-	merkleRoot, err := b.CalculateMerkleRoot()
-	if err != nil {
-		return err
-	}
-
-	b.MerkleRoot = merkleRoot
+	b.MerkleRoot = b.CalculateMerkleRoot()
 	return nil
 }
 
-func (b *Block) CalculateMerkleRoot() (string, error) {
+func (b *Block) CalculateMerkleRoot() string {
 	if len(b.Transactions) == 0 {
-		return "", errors.New("no transactions to compute merkle root")
+		return ""
 	}
 
 	currentLevel := make([]string, 0)
@@ -105,5 +94,5 @@ func (b *Block) CalculateMerkleRoot() (string, error) {
 		}
 	}
 
-	return currentLevel[0], nil
+	return currentLevel[0]
 }
