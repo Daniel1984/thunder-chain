@@ -28,13 +28,13 @@ func (app *App) Start(ctx context.Context) error {
 
 		default:
 			// 1. get pending transactions from mempool
-			txsRes, err := app.mempoolRPC.PendingTransactions(ctx, nil)
+			pendTxs, err := app.mempoolRPC.PendingTransactions(ctx, nil)
 			if err != nil {
 				app.log.Error("failed getting pending transactions", "err", err)
 				continue
 			}
 
-			txs := txsRes.GetTransactions()
+			txs := pendTxs.GetTransactions()
 			if len(txs) == 0 {
 				app.log.Info("no transactions in mempool")
 				continue
@@ -62,8 +62,6 @@ func (app *App) Start(ctx context.Context) error {
 				continue
 			}
 
-			// maybe 5, 6 smf 7 should happen in one db transaction?
-
 			// 5. submit mined block
 			if err := app.submitBlock(ctx, newBlock); err != nil {
 				app.log.Error("failed to submit mined block", "err", err)
@@ -76,9 +74,9 @@ func (app *App) Start(ctx context.Context) error {
 			}
 
 			// 7. delete processed txs from mempool
-			// if err := app.deleteTxs(ctx, newBlock); err != nil {
-			// 	app.log.Error("failed to delete processed transactions", "err", err)
-			// }
+			if err := app.deleteTxs(ctx, newBlock); err != nil {
+				app.log.Error("failed to delete processed transactions", "err", err)
+			}
 		}
 	}
 }
@@ -170,7 +168,6 @@ func (app *App) validateTransactions(ctx context.Context, txs []*transaction.Tra
 }
 
 func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
-	// 1. Save block to database
 	blockPld := &proto.CreateBlockRequest{
 		Block: &proto.Block{
 			Hash:         block.Hash,
@@ -187,12 +184,6 @@ func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
 		return err
 	}
 
-	// 3. Remove mined transactions from mempool
-	// if err := app.mempoolRPC.RemoveTransactions(ctx, block.Transactions); err != nil {
-	// 	app.log.Error("failed to clear mempool transactions", "err", err)
-	// 	return err
-	// }
-
 	return nil
 }
 
@@ -206,6 +197,16 @@ func (app *App) updateBalances(ctx context.Context, block *block.Block) error {
 		},
 	})
 
+	return err
+}
+
+func (app *App) deleteTxs(ctx context.Context, block *block.Block) error {
+	var idsToDelete []int64
+	for _, tx := range block.Transactions {
+		idsToDelete = append(idsToDelete, tx.ID)
+	}
+
+	_, err := app.mempoolRPC.DeleteMempoolBatch(ctx, &proto.DeleteMempoolBatchRequest{Ids: idsToDelete})
 	return err
 }
 
