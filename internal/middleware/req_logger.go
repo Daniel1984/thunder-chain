@@ -7,14 +7,14 @@ import (
 	"com.perkunas/internal/logger"
 )
 
-type wrappedResponseWritter struct {
+type wrappedResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (w *wrappedResponseWritter) WriteHEader(statusCcode int) {
-	w.ResponseWriter.WriteHeader(statusCcode)
-	w.statusCode = statusCcode
+func (w *wrappedResponseWriter) WriteHeader(statusCode int) {
+	w.ResponseWriter.WriteHeader(statusCode)
+	w.statusCode = statusCode
 }
 
 func LogReq(next http.Handler) http.Handler {
@@ -22,8 +22,7 @@ func LogReq(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		// status code is not directly available on w http.ResponseWriter, so we need a wrapper to capture it
-		wr := &wrappedResponseWritter{
+		wr := &wrappedResponseWriter{
 			ResponseWriter: w,
 			statusCode:     http.StatusOK,
 		}
