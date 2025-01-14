@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	MempoolService_CreateMempool_FullMethodName       = "/mempool.MempoolService/CreateMempool"
-	MempoolService_DeleteMempool_FullMethodName       = "/mempool.MempoolService/DeleteMempool"
+	MempoolService_DeleteMempoolBatch_FullMethodName  = "/mempool.MempoolService/DeleteMempoolBatch"
 	MempoolService_PendingTransactions_FullMethodName = "/mempool.MempoolService/PendingTransactions"
 )
 
@@ -29,7 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MempoolServiceClient interface {
 	CreateMempool(ctx context.Context, in *CreateMempoolRequest, opts ...grpc.CallOption) (*CreateMempoolResponse, error)
-	DeleteMempool(ctx context.Context, in *DeleteMempoolRequest, opts ...grpc.CallOption) (*DeleteMempoolResponse, error)
+	DeleteMempoolBatch(ctx context.Context, in *DeleteMempoolBatchRequest, opts ...grpc.CallOption) (*DeleteMempoolBatchResponse, error)
 	PendingTransactions(ctx context.Context, in *PendingTransactionsRequest, opts ...grpc.CallOption) (*PendingTransactionsResponse, error)
 }
 
@@ -50,9 +50,9 @@ func (c *mempoolServiceClient) CreateMempool(ctx context.Context, in *CreateMemp
 	return out, nil
 }
 
-func (c *mempoolServiceClient) DeleteMempool(ctx context.Context, in *DeleteMempoolRequest, opts ...grpc.CallOption) (*DeleteMempoolResponse, error) {
-	out := new(DeleteMempoolResponse)
-	err := c.cc.Invoke(ctx, MempoolService_DeleteMempool_FullMethodName, in, out, opts...)
+func (c *mempoolServiceClient) DeleteMempoolBatch(ctx context.Context, in *DeleteMempoolBatchRequest, opts ...grpc.CallOption) (*DeleteMempoolBatchResponse, error) {
+	out := new(DeleteMempoolBatchResponse)
+	err := c.cc.Invoke(ctx, MempoolService_DeleteMempoolBatch_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (c *mempoolServiceClient) PendingTransactions(ctx context.Context, in *Pend
 // for forward compatibility
 type MempoolServiceServer interface {
 	CreateMempool(context.Context, *CreateMempoolRequest) (*CreateMempoolResponse, error)
-	DeleteMempool(context.Context, *DeleteMempoolRequest) (*DeleteMempoolResponse, error)
+	DeleteMempoolBatch(context.Context, *DeleteMempoolBatchRequest) (*DeleteMempoolBatchResponse, error)
 	PendingTransactions(context.Context, *PendingTransactionsRequest) (*PendingTransactionsResponse, error)
 	mustEmbedUnimplementedMempoolServiceServer()
 }
@@ -85,8 +85,8 @@ type UnimplementedMempoolServiceServer struct {
 func (UnimplementedMempoolServiceServer) CreateMempool(context.Context, *CreateMempoolRequest) (*CreateMempoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMempool not implemented")
 }
-func (UnimplementedMempoolServiceServer) DeleteMempool(context.Context, *DeleteMempoolRequest) (*DeleteMempoolResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteMempool not implemented")
+func (UnimplementedMempoolServiceServer) DeleteMempoolBatch(context.Context, *DeleteMempoolBatchRequest) (*DeleteMempoolBatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteMempoolBatch not implemented")
 }
 func (UnimplementedMempoolServiceServer) PendingTransactions(context.Context, *PendingTransactionsRequest) (*PendingTransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PendingTransactions not implemented")
@@ -122,20 +122,20 @@ func _MempoolService_CreateMempool_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MempoolService_DeleteMempool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteMempoolRequest)
+func _MempoolService_DeleteMempoolBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMempoolBatchRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MempoolServiceServer).DeleteMempool(ctx, in)
+		return srv.(MempoolServiceServer).DeleteMempoolBatch(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MempoolService_DeleteMempool_FullMethodName,
+		FullMethod: MempoolService_DeleteMempoolBatch_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MempoolServiceServer).DeleteMempool(ctx, req.(*DeleteMempoolRequest))
+		return srv.(MempoolServiceServer).DeleteMempoolBatch(ctx, req.(*DeleteMempoolBatchRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -170,8 +170,8 @@ var MempoolService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MempoolService_CreateMempool_Handler,
 		},
 		{
-			MethodName: "DeleteMempool",
-			Handler:    _MempoolService_DeleteMempool_Handler,
+			MethodName: "DeleteMempoolBatch",
+			Handler:    _MempoolService_DeleteMempoolBatch_Handler,
 		},
 		{
 			MethodName: "PendingTransactions",
