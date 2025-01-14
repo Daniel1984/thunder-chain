@@ -45,9 +45,13 @@ func (mp *Mempool) CreateMempool(ctx context.Context, in *proto.CreateMempoolReq
 	return &proto.CreateMempoolResponse{Hash: pld.Hash}, nil
 }
 
-// TODO: implement and accept list of tx hashes to delete
-func (mp *Mempool) DeleteTransaction(ctx context.Context, in *proto.DeleteMempoolRequest) (*proto.DeleteMempoolResponse, error) {
-	return &proto.DeleteMempoolResponse{Success: true}, nil
+func (mp *Mempool) DeleteMempoolBatch(ctx context.Context, in *proto.DeleteMempoolBatchRequest) (*proto.DeleteMempoolBatchResponse, error) {
+	if err := mp.txModel.DeleteBatch(ctx, in.Ids); err != nil {
+		mp.log.Error("failed deleting batch of transactions", "err", err, "txIDs", in.Ids)
+		return nil, status.Error(codes.Internal, "failed deleting batch of transactions")
+	}
+
+	return &proto.DeleteMempoolBatchResponse{Success: true, DeletedCount: int32(len(in.Ids))}, nil
 }
 
 func (mp *Mempool) PendingTransactions(ctx context.Context, in *proto.PendingTransactionsRequest) (*proto.PendingTransactionsResponse, error) {
@@ -60,6 +64,7 @@ func (mp *Mempool) PendingTransactions(ctx context.Context, in *proto.PendingTra
 	protoTxs := []*proto.Transaction{}
 	for _, tx := range txs {
 		protoTxs = append(protoTxs, &proto.Transaction{
+			Id:        tx.ID,
 			Hash:      tx.Hash,
 			FromAddr:  tx.From,
 			ToAddr:    tx.To,
