@@ -24,19 +24,7 @@ func (mp *Mempool) CreateMempool(ctx context.Context, in *proto.CreateMempoolReq
 		return nil, status.Error(codes.Canceled, "request payload missing transaction")
 	}
 
-	pld := transaction.Transaction{
-		Hash:      tx.GetHash(),
-		From:      tx.GetFromAddr(),
-		To:        tx.GetToAddr(),
-		Signature: tx.GetSignature(),
-		Amount:    tx.GetAmount(),
-		Fee:       tx.GetFee(),
-		Nonce:     tx.GetNonce(),
-		Data:      tx.GetData(),
-		Timestamp: tx.GetTimestamp(),
-		Expires:   tx.GetExpires(),
-	}
-
+	pld := transaction.FromProtoTx(tx)
 	if err := mp.txModel.Save(ctx, pld); err != nil {
 		mp.log.Error("failed saving transaction in mempool", "err", err)
 		return nil, status.Error(codes.Internal, "failed persisting transaction")
@@ -61,21 +49,6 @@ func (mp *Mempool) PendingTransactions(ctx context.Context, in *proto.PendingTra
 		return nil, status.Error(codes.Internal, "failed getting pending transactions")
 	}
 
-	protoTxs := []*proto.Transaction{}
-	for _, tx := range txs {
-		protoTxs = append(protoTxs, &proto.Transaction{
-			Id:        tx.ID,
-			Hash:      tx.Hash,
-			FromAddr:  tx.From,
-			ToAddr:    tx.To,
-			Signature: tx.Signature,
-			Fee:       tx.Fee,
-			Amount:    tx.Amount,
-			Nonce:     tx.Nonce,
-			Timestamp: tx.Timestamp,
-			Expires:   tx.Expires,
-		})
-	}
-
+	protoTxs := transaction.ToProtoTxs(txs)
 	return &proto.PendingTransactionsResponse{Transactions: protoTxs}, nil
 }
