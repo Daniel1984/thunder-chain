@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"com.perkunas/internal/models/transaction"
+	"com.perkunas/proto"
 )
 
 type Block struct {
@@ -95,4 +96,27 @@ func (b *Block) CalculateMerkleRoot() string {
 	}
 
 	return currentLevel[0]
+}
+
+func FromProtoBlock(in *proto.Block) Block {
+	return Block{
+		Hash:       in.GetHash(),
+		PrevHash:   in.GetPrevHash(),
+		MerkleRoot: in.GetMerkleRoot(),
+		Timestamp:  in.GetTimestamp(),
+		Height:     in.GetHeight(),
+		Nonce:      in.GetNonce(),
+		// Difficulty: in.Difficulty(), ?
+	}
+}
+
+func ToProtoBlock(in Block) *proto.Block {
+	return &proto.Block{
+		Hash:       in.Hash,
+		PrevHash:   in.PrevHash,
+		MerkleRoot: in.MerkleRoot,
+		Height:     in.Height,
+		Nonce:      in.Nonce,
+		Timestamp:  in.Timestamp,
+	}
 }
