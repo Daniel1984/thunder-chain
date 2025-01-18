@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -10,6 +11,16 @@ import (
 	"com.perkunas/internal/models/transaction"
 	"com.perkunas/proto"
 )
+
+type Miner struct {
+	log        *slog.Logger
+	mempoolAPI string
+	stateAPI   string
+	blocksAPI  string
+	mempoolRPC proto.MempoolServiceClient
+	stateRPC   proto.StateServiceClient
+	blocksRPC  proto.BlockServiceClient
+}
 
 type MiningCandidate struct {
 	PrevBlock  *proto.Block
@@ -19,7 +30,7 @@ type MiningCandidate struct {
 	Timestamp  int64
 }
 
-func (app *App) Start(ctx context.Context) error {
+func (m *Miner) Start(ctx context.Context) error {
 	for {
 		time.Sleep(10 * time.Second)
 		select {
@@ -28,22 +39,22 @@ func (app *App) Start(ctx context.Context) error {
 
 		default:
 			// 1. get pending transactions from mempool
-			pendTxs, err := app.mempoolRPC.PendingTransactions(ctx, nil)
+			pendTxs, err := m.mempoolRPC.PendingTransactions(ctx, nil)
 			if err != nil {
-				app.log.Error("failed getting pending transactions", "err", err)
+				m.log.Error("failed getting pending transactions", "err", err)
 				continue
 			}
 
 			txs := pendTxs.GetTransactions()
 			if len(txs) == 0 {
-				app.log.Info("no transactions in mempool")
+				m.log.Info("no transactions in mempool")
 				continue
 			}
 
 			// 2. get latest block
-			prevBlock, err := app.blocksRPC.GetLatestBlock(ctx, nil)
+			prevBlock, err := m.blocksRPC.GetLatestBlock(ctx, nil)
 			if err != nil {
-				app.log.Error("failed gettin latest block", "err", err)
+				m.log.Error("failed gettin latest block", "err", err)
 				continue
 			}
 
@@ -51,39 +62,39 @@ func (app *App) Start(ctx context.Context) error {
 			candidate := &MiningCandidate{
 				PrevBlock: prevBlock.GetBlock(),
 				Txs:       transaction.FromProtoTxs(txs),
-				// Difficulty: app.getCurrentDifficulty(),
+				// Difficulty: m.getCurrentDifficulty(),
 				// Timestamp:  time.Now().Unix(),
 			}
 
 			// 4. mine block (find valid nonce)
-			newBlock, err := app.mineBlock(ctx, candidate)
+			newBlock, err := m.mineBlock(ctx, candidate)
 			if err != nil {
-				app.log.Error("failed to mine block", "err", err)
+				m.log.Error("failed to mine block", "err", err)
 				continue
 			}
 
 			// 5. submit mined block
-			if err := app.submitBlock(ctx, newBlock); err != nil {
-				app.log.Error("failed to submit mined block", "err", err)
+			if err := m.submitBlock(ctx, newBlock); err != nil {
+				m.log.Error("failed to submit mined block", "err", err)
 				continue
 			}
 
 			// 6. update balances/state
-			if err := app.updateBalances(ctx, newBlock); err != nil {
-				app.log.Error("failed to update balannces", "err", err)
+			if err := m.updateBalances(ctx, newBlock); err != nil {
+				m.log.Error("failed to update balannces", "err", err)
 			}
 
 			// 7. delete processed txs from mempool
-			if err := app.deleteTxs(ctx, newBlock); err != nil {
-				app.log.Error("failed to delete processed transactions", "err", err)
+			if err := m.deleteTxs(ctx, newBlock); err != nil {
+				m.log.Error("failed to delete processed transactions", "err", err)
 			}
 		}
 	}
 }
 
-func (app *App) mineBlock(ctx context.Context, candidate *MiningCandidate) (*block.Block, error) {
+func (m *Miner) mineBlock(ctx context.Context, candidate *MiningCandidate) (*block.Block, error) {
 	// 1. validate transactions
-	validTxs := app.validateTransactions(ctx, candidate.Txs)
+	validTxs := m.validateTransactions(ctx, candidate.Txs)
 	if len(validTxs) == 0 {
 		return nil, errors.New("no valid transactions found")
 	}
@@ -95,7 +106,7 @@ func (app *App) mineBlock(ctx context.Context, candidate *MiningCandidate) (*blo
 		Timestamp:    candidate.Timestamp,
 		Transactions: validTxs,
 		// Difficulty:   candidate.Difficulty,
-		// Transactions: append(validTxs, createRewardTx(app.reward)),
+		// Transactions: append(validTxs, createRewardTx(m.reward)),
 	}
 
 	// 3. find valid nonce (Proof of Work)
@@ -118,7 +129,7 @@ func (app *App) mineBlock(ctx context.Context, candidate *MiningCandidate) (*blo
 	}
 }
 
-func (app *App) validateTransactions(ctx context.Context, txs []*transaction.Transaction) []*transaction.Transaction {
+func (m *Miner) validateTransactions(ctx context.Context, txs []*transaction.Transaction) []*transaction.Transaction {
 	validTxs := make([]*transaction.Transaction, 0)
 
 	// track used nonces to prevent double-spending within same block
@@ -127,36 +138,36 @@ func (app *App) validateTransactions(ctx context.Context, txs []*transaction.Tra
 	for _, tx := range txs {
 		// skip invalid transactions but continue processing others
 		if err := tx.Verify(); err != nil {
-			app.log.Warn("invalid transaction skipped", "hash", tx.Hash, "error", err)
+			m.log.Warn("invalid transaction skipped", "hash", tx.Hash, "error", err)
 			continue
 		}
 
 		// check sender balance
-		fromAccountRes, err := app.stateRPC.GetAccountByAddress(ctx, &proto.GetAccountByAddressRequest{Address: tx.From})
+		fromAccountRes, err := m.stateRPC.GetAccountByAddress(ctx, &proto.GetAccountByAddressRequest{Address: tx.From})
 		if err != nil {
-			app.log.Error("failed getting account by address", "address", tx.From, "err", err)
+			m.log.Error("failed getting account by address", "address", tx.From, "err", err)
 			continue
 		}
 
 		fromAcc := fromAccountRes.GetAccount()
 		if fromAcc == nil {
-			app.log.Info("account not found by address", "addr", tx.From)
+			m.log.Info("account not found by address", "addr", tx.From)
 			continue
 		}
 
 		if fromAcc.GetBalance() < tx.Amount+tx.Fee {
-			app.log.Info("insufficient balance", "addr", tx.From, "balance", fromAcc.GetBalance(), "amount", tx.Amount+tx.Fee)
+			m.log.Info("insufficient balance", "addr", tx.From, "balance", fromAcc.GetBalance(), "amount", tx.Amount+tx.Fee)
 			continue
 		}
 
 		// check nonce
 		if tx.Nonce != fromAcc.GetNonce()+1 {
-			app.log.Info("invalid tx nonce", "txNonce", tx.Nonce, "accNonce", fromAcc.GetNonce()+1)
+			m.log.Info("invalid tx nonce", "txNonce", tx.Nonce, "accNonce", fromAcc.GetNonce()+1)
 			continue
 		}
 
 		if lastNonce, exists := usedNonces[tx.From]; exists && tx.Nonce <= lastNonce {
-			app.log.Info("nonce is smaller or equal to previously used one", "txNonce", tx.Nonce, "lastUsedNonce", lastNonce)
+			m.log.Info("nonce is smaller or equal to previously used one", "txNonce", tx.Nonce, "lastUsedNonce", lastNonce)
 			continue
 		}
 
@@ -167,7 +178,7 @@ func (app *App) validateTransactions(ctx context.Context, txs []*transaction.Tra
 	return validTxs
 }
 
-func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
+func (m *Miner) submitBlock(ctx context.Context, block *block.Block) error {
 	blockPld := &proto.CreateBlockRequest{
 		Block: &proto.Block{
 			Hash:         block.Hash,
@@ -179,17 +190,17 @@ func (app *App) submitBlock(ctx context.Context, block *block.Block) error {
 		},
 	}
 
-	if _, err := app.blocksRPC.CreateBlock(ctx, blockPld); err != nil {
-		app.log.Error("failed to crete block", "err", err)
+	if _, err := m.blocksRPC.CreateBlock(ctx, blockPld); err != nil {
+		m.log.Error("failed to crete block", "err", err)
 		return err
 	}
 
 	return nil
 }
 
-func (app *App) updateBalances(ctx context.Context, block *block.Block) error {
-	_, err := app.stateRPC.CreateStateChange(ctx, &proto.CreateStateChangeRequest{
-		Statechange: &proto.StateChange{
+func (m *Miner) updateBalances(ctx context.Context, block *block.Block) error {
+	_, err := m.stateRPC.CreateStateChange(ctx, &proto.CreateStateRequest{
+		State: &proto.State{
 			BlockHash:    block.Hash,
 			BlockHeight:  block.Height,
 			Timestamp:    block.Timestamp,
@@ -200,13 +211,13 @@ func (app *App) updateBalances(ctx context.Context, block *block.Block) error {
 	return err
 }
 
-func (app *App) deleteTxs(ctx context.Context, block *block.Block) error {
+func (m *Miner) deleteTxs(ctx context.Context, block *block.Block) error {
 	var idsToDelete []int64
 	for _, tx := range block.Transactions {
 		idsToDelete = append(idsToDelete, tx.ID)
 	}
 
-	_, err := app.mempoolRPC.DeleteMempoolBatch(ctx, &proto.DeleteMempoolBatchRequest{Ids: idsToDelete})
+	_, err := m.mempoolRPC.DeleteMempoolBatch(ctx, &proto.DeleteMempoolBatchRequest{Ids: idsToDelete})
 	return err
 }
 
