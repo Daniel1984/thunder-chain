@@ -150,3 +150,18 @@ func FromProtoTxs(in []*proto.Transaction) (out []*Transaction) {
 
 	return out
 }
+
+func FromProtoTx(in *proto.Transaction) Transaction {
+	return Transaction{
+		Hash:      in.GetHash(),
+		From:      in.GetFromAddr(),
+		To:        in.GetToAddr(),
+		Signature: in.GetSignature(),
+		Amount:    in.GetAmount(),
+		Fee:       in.GetFee(),
+		Nonce:     in.GetNonce(),
+		Data:      in.GetData(),
+		Timestamp: in.GetTimestamp(),
+		Expires:   in.GetExpires(),
+	}
+}

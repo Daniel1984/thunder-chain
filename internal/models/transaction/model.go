@@ -42,7 +42,7 @@ func (tm *Model) DeleteBatch(ctx context.Context, IDs []int64) error {
 	return err
 }
 
-func (tm *Model) Pending(ctx context.Context) ([]Transaction, error) {
+func (tm *Model) Pending(ctx context.Context) ([]*Transaction, error) {
 	query := `
 		SELECT
 			id,
@@ -59,7 +59,7 @@ func (tm *Model) Pending(ctx context.Context) ([]Transaction, error) {
 		ORDER BY fee DESC LIMIT 2000
 	`
 
-	var res []Transaction
+	var res []*Transaction
 	if err := tm.DB.ReadDB.Select(&res, query); err != nil {
 		return nil, err
 	}
