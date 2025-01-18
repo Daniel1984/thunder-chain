@@ -16,12 +16,6 @@ services:
           target: ./app
           ignore:
             - .git/
-        - action: rebuild
-          path: ./internal
-          target: ./app
-        - action: rebuild
-          path: ./proto
-          target: ./app
   node:
     build:
       dockerfile: ./cmd/node/Dockerfile
@@ -40,12 +34,6 @@ services:
           target: ./app
           ignore:
             - .git/
-        - action: rebuild
-          path: ./internal
-          target: ./app
-        - action: rebuild
-          path: ./proto
-          target: ./app
   blocks:
     build:
       dockerfile: ./cmd/blocks/Dockerfile
@@ -63,15 +51,9 @@ services:
           target: ./app
           ignore:
             - .git/
-        - action: rebuild
-          path: ./internal
-          target: ./app
-        - action: rebuild
-          path: ./proto
-          target: ./app
-  accounts:
+  state:
     build:
-      dockerfile: ./cmd/accounts/Dockerfile
+      dockerfile: ./cmd/state/Dockerfile
       context: .
     ports:
       - "8383:8383"
@@ -82,16 +64,10 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./cmd/accounts
+          path: ./cmd/state
           target: ./app
           ignore:
             - .git/
-        - action: rebuild
-          path: ./internal
-          target: ./app
-        - action: rebuild
-          path: ./proto
-          target: ./app
   miner:
     build:
       dockerfile: ./cmd/miner/Dockerfile
@@ -100,7 +76,7 @@ services:
       - "8484:8484"
     environment:
       - MEMPOOL_API=mempool:8181
-      - STATE_API=accounts:8383
+      - STATE_API=state:8383
       - BLOCKS_API=blocks:8282
     volumes:
       - ./data:/data
@@ -111,9 +87,3 @@ services:
           target: ./app
           ignore:
             - .git/
-        - action: rebuild
-          path: ./internal
-          target: ./app
-        - action: rebuild
-          path: ./proto
-          target: ./app
