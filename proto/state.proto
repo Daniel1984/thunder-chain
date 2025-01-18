@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package statechange;
+package state;
 option go_package = "./proto";
 
 import "mempool.proto";  // Import the mempool proto file
 
-message StateChange {
+message State {
   string block_hash = 1;
   uint64 block_height = 2;
   int64 timestamp = 3;
@@ -20,11 +20,11 @@ message Account {
   int64 timestamp = 5;
 }
 
-message CreateStateChangeRequest {
-  StateChange statechange = 1;
+message CreateStateRequest {
+  State state = 1;
 }
 
-message CreateStateChangeResponse {
+message CreateStateResponse {
   string message = 1;
 }
 
@@ -36,7 +36,7 @@ message GetAccountByAddressResponse {
   Account account = 1;
 }
 
-service StateChangeService {
-  rpc CreateStateChange(CreateStateChangeRequest) returns (CreateStateChangeResponse);
+service StateService {
+  rpc CreateStateChange(CreateStateRequest) returns (CreateStateResponse);
   rpc GetAccountByAddress(GetAccountByAddressRequest) returns (GetAccountByAddressResponse);
 }
