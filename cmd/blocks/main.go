@@ -36,22 +36,22 @@ func main() {
 	}
 	defer db.Close()
 
-	app := &App{
+	b := &Blocks{
 		log:          log,
 		blockModel:   block.Model{DB: db},
 		receiptModel: receipt.Model{DB: db},
 		db:           db,
 	}
 
-	if err := app.ensureGenesisBlock(ctx); err != nil {
-		app.log.Error("create genesis block fail", "err", err)
+	if err := b.ensureGenesisBlock(ctx); err != nil {
+		b.log.Error("create genesis block fail", "err", err)
 		os.Exit(1)
 	}
 
-	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
-	app.log.Info("rpc server started", "port exposed", app.apiPort)
-	if err := serve(app.apiPort, app); err != nil {
-		app.log.Error("failed to start grpc server", "err", err)
+	flag.StringVar(&b.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
+	b.log.Info("rpc server started", "port exposed", b.apiPort)
+	if err := serve(b.apiPort, b); err != nil {
+		b.log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
 }
