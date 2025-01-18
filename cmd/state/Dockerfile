@@ -9,7 +9,7 @@ RUN go mod download
 # Copy the rest of the application code
 COPY . .
 
-RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o main ./cmd/accounts
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o main ./cmd/state
 
 
 FROM scratch

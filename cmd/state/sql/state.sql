@@ -8,9 +8,16 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 -- Trigger to update the timestamp
 CREATE TRIGGER IF NOT EXISTS update_accounts_timestamp
-AFTER UPDATE ON accounts
-BEGIN
-  UPDATE accounts SET timestamp = strftime('%s', 'now') WHERE id = NEW.id;
+AFTER
+UPDATE
+  ON accounts BEGIN
+UPDATE
+  accounts
+SET
+  timestamp = strftime('%s', 'now')
+WHERE
+  id = NEW.id;
+
 END;
 
 -- For transaction history/audit
@@ -28,4 +35,5 @@ CREATE TABLE IF NOT EXISTS balance_changes (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_balance_changes_account ON balance_changes(account_id);
+
 CREATE INDEX IF NOT EXISTS idx_balance_changes_block ON balance_changes(block_height);

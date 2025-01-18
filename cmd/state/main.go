@@ -18,35 +18,35 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-//go:embed sql/accounts.sql
-var accountsSql string
+//go:embed sql/state.sql
+var stateSql string
 
-const dbName = "accounts.db"
+const dbName = "state.db"
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	log := logger.WithJSONFormat().With(slog.String("scope", "accounts-svc"))
+	log := logger.WithJSONFormat().With(slog.String("scope", "state-svc"))
 
-	db, err := dbConnect(ctx, dbName, accountsSql)
+	db, err := dbConnect(ctx, dbName, stateSql)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed connecting to %s", dbName), "err", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
-	app := &App{
+	s := &State{
 		db:                 db,
 		log:                log,
 		accModel:           &account.Model{DB: db},
 		balanceChangeModel: &balancechange.Model{DB: db},
 	}
 
-	flag.StringVar(&app.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
-	app.log.Info("rpc server started", "port exposed", app.apiPort)
-	if err := serve(app.apiPort, app); err != nil {
-		app.log.Error("failed to start grpc server", "err", err)
+	flag.StringVar(&s.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
+	s.log.Info("rpc server started", "port exposed", s.apiPort)
+	if err := serve(s.apiPort, s); err != nil {
+		s.log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
 }
@@ -64,7 +64,7 @@ func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
 	return db, nil
 }
 
-func serve(port string, service proto.StateChangeServiceServer) error {
+func serve(port string, service proto.StateServiceServer) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return fmt.Errorf("failed starting net listener %w", err)
@@ -73,7 +73,7 @@ func serve(port string, service proto.StateChangeServiceServer) error {
 	server := grpc.NewServer()
 	reflection.Register(server)
 
-	proto.RegisterStateChangeServiceServer(server, service)
+	proto.RegisterStateServiceServer(server, service)
 
 	return server.Serve(listener)
 }
