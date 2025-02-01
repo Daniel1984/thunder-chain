@@ -32,7 +32,7 @@ type MiningCandidate struct {
 
 func (m *Miner) Start(ctx context.Context) error {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 		select {
 		case <-ctx.Done():
 			return nil
@@ -82,6 +82,7 @@ func (m *Miner) Start(ctx context.Context) error {
 			// 6. update balances/state
 			if err := m.updateBalances(ctx, newBlock); err != nil {
 				m.log.Error("failed to update balannces", "err", err)
+				continue
 			}
 
 			// 7. delete processed txs from mempool
