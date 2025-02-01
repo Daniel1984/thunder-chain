@@ -34,7 +34,7 @@ func (s *State) GetAccountByAddress(ctx context.Context, in *proto.GetAccountByA
 	}, nil
 }
 
-func (s *State) CreateState(ctx context.Context, in *proto.CreateStateRequest) (*proto.CreateStateResponse, error) {
+func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequest) (*proto.CreateStateResponse, error) {
 	sc := in.GetState()
 	if sc == nil {
 		s.log.Info("missing balance change data")
