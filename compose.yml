@@ -24,6 +24,7 @@ services:
       - "8080:8080"
     environment:
       - MEMPOOL_API=mempool:8181
+      - BLOCKS_API=blocks:8282
       - API_PORT=8080
     volumes:
       - ./data:/data
@@ -76,8 +77,8 @@ services:
       - "8484:8484"
     environment:
       - MEMPOOL_API=mempool:8181
-      - STATE_API=state:8383
       - BLOCKS_API=blocks:8282
+      - STATE_API=state:8383
     volumes:
       - ./data:/data
     develop:
