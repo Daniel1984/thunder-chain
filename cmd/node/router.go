@@ -4,10 +4,10 @@ import (
 	"net/http"
 )
 
-func (app *App) getRouter() *http.ServeMux {
+func (n *Node) getRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /transactions", app.createTransaction)
+	mux.HandleFunc("POST /transactions", n.createTransaction)
 
 	return mux
 }

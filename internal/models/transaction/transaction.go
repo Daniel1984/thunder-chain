@@ -165,3 +165,18 @@ func FromProtoTx(in *proto.Transaction) Transaction {
 		Expires:   in.GetExpires(),
 	}
 }
+
+func ToProtoTx(in Transaction) *proto.Transaction {
+	return &proto.Transaction{
+		Hash:      in.Hash,
+		FromAddr:  in.From,
+		ToAddr:    in.To,
+		Signature: in.Signature,
+		Amount:    in.Amount,
+		Fee:       in.Fee,
+		Nonce:     in.Nonce,
+		Data:      in.Data,
+		Timestamp: in.Timestamp,
+		Expires:   in.Expires,
+	}
+}
