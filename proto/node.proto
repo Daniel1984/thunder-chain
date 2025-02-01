@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package node;
+option go_package = "./proto";
+
+message PeerNode {
+  string ip = 1;
+  uint64 port = 2;
+  bool is_bootstrap = 3;
+  bool is_active = 4;
+}
+
+message NodeStatusResponse {
+  string block_hash = 1;
+  uint64 block_number = 2;
+  repeated PeerNode peers_known = 3;
+}
+
+message GetNodeStatusRequest {}
+
+service NodeService {
+  rpc GetNodeStatus(GetNodeStatusRequest) returns (NodeStatusResponse);
+}
