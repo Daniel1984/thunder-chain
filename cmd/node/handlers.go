@@ -36,7 +36,7 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 
 	protoTxn := transaction.ToProtoTx(txn)
 	pld := &proto.CreateMempoolRequest{Transaction: protoTxn}
-	createResp, err := n.mempoolRpcClient.CreateMempool(r.Context(), pld)
+	createResp, err := n.mempoolRPC.CreateMempool(r.Context(), pld)
 	if err != nil {
 		n.log.Error("could not push transaction to mempool", "txHash", txn.Hash, "err", err)
 		http.Error(w, "could not create transaction", http.StatusBadRequest)

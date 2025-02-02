@@ -19,36 +19,38 @@ import (
 
 type Node struct {
 	proto.UnimplementedNodeServiceServer
-	log              *slog.Logger
-	apiPort          string
-	mempoolAPI       string
-	blocksAPI        string
-	peerNodes        []peernode.Node
-	mempoolRpcClient proto.MempoolServiceClient
-	blocksRPC        proto.BlockServiceClient
+	log        *slog.Logger
+	apiPort    string
+	mempoolAPI string
+	stateAPI   string
+	peerNodes  []peernode.Node
+	mempoolRPC proto.MempoolServiceClient
+	stateRPC   proto.StateServiceClient
 }
 
 func main() {
 	n := &Node{log: logger.WithJSONFormat().With(slog.String("scope", "node"))}
 	flag.StringVar(&n.mempoolAPI, "mempoolapi", os.Getenv("MEMPOOL_API"), "mempool api endpoint")
+	flag.StringVar(&n.stateAPI, "stateapi", os.Getenv("STATE_API"), "state api endpoint")
 	flag.StringVar(&n.apiPort, "apiport", os.Getenv("API_PORT"), "node api port")
-	flag.StringVar(&n.blocksAPI, "blocksapi", os.Getenv("BLOCKS_API"), "blocks api endpoint")
 
+	// initiate mempool rpc client
 	memPoolConn, client, err := mempoolRpcClient(n.mempoolAPI)
 	if err != nil {
 		n.log.Error("grpc did not connect", "err", err)
 		os.Exit(1)
 	}
 	defer memPoolConn.Close()
-	n.mempoolRpcClient = client
+	n.mempoolRPC = client
 
-	blocksConn, blocksClient, err := blocksRPCClient(n.blocksAPI)
+	// initiate state rpc client
+	stateConn, stateClient, err := stateRPCClient(n.stateAPI)
 	if err != nil {
-		n.log.Error("blocks grpc did not connect", "err", err)
+		n.log.Error("state grpc did not connect", "err", err)
 		os.Exit(1)
 	}
-	defer blocksConn.Close()
-	n.blocksRPC = blocksClient
+	defer stateConn.Close()
+	n.stateRPC = stateClient
 
 	srv := httpServer(n.getRouter(), n.apiPort)
 	n.log.Info("api server started", "port exposed", n.apiPort)
@@ -76,12 +78,12 @@ func mempoolRpcClient(apiUrl string) (*grpc.ClientConn, proto.MempoolServiceClie
 	return conn, client, nil
 }
 
-func blocksRPCClient(apiUrl string) (*grpc.ClientConn, proto.BlockServiceClient, error) {
+func stateRPCClient(apiUrl string) (*grpc.ClientConn, proto.StateServiceClient, error) {
 	conn, err := grpc.NewClient(apiUrl, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cli := proto.NewBlockServiceClient(conn)
+	cli := proto.NewStateServiceClient(conn)
 	return conn, cli, nil
 }

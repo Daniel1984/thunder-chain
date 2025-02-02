@@ -9,13 +9,13 @@ import (
 )
 
 func (n *Node) GetNodeStatus(ctx context.Context, req *proto.GetNodeStatusRequest) (*proto.NodeStatusResponse, error) {
-	latestBlock, err := n.blocksRPC.GetLatestBlock(ctx, nil)
+	latestBlock, err := n.stateRPC.GetLatestBlock(ctx, nil)
 	if err != nil {
 		n.log.Error("failed gettin latest block", "err", err)
 		return nil, status.Error(codes.Internal, "failed gettin latest block")
 	}
 
-	n.log.Info("latestBlock", latestBlock)
+	n.log.Info("latestBlock", "lb", latestBlock)
 
 	return &proto.NodeStatusResponse{}, nil
 }
