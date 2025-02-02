@@ -16,10 +16,8 @@ type Miner struct {
 	log        *slog.Logger
 	mempoolAPI string
 	stateAPI   string
-	blocksAPI  string
 	mempoolRPC proto.MempoolServiceClient
 	stateRPC   proto.StateServiceClient
-	blocksRPC  proto.BlockServiceClient
 }
 
 type MiningCandidate struct {
@@ -52,7 +50,7 @@ func (m *Miner) Start(ctx context.Context) error {
 			}
 
 			// 2. get latest block
-			prevBlock, err := m.blocksRPC.GetLatestBlock(ctx, nil)
+			prevBlock, err := m.stateRPC.GetLatestBlock(ctx, nil)
 			if err != nil {
 				m.log.Error("failed gettin latest block", "err", err)
 				continue
@@ -73,19 +71,13 @@ func (m *Miner) Start(ctx context.Context) error {
 				continue
 			}
 
-			// 5. submit mined block
-			if err := m.submitBlock(ctx, newBlock); err != nil {
-				m.log.Error("failed to submit mined block", "err", err)
+			// 5. persist new block
+			if err := m.persistBlock(ctx, newBlock); err != nil {
+				m.log.Error("failed to update chain state", "err", err)
 				continue
 			}
 
-			// 6. update balances/state
-			if err := m.updateBalances(ctx, newBlock); err != nil {
-				m.log.Error("failed to update balannces", "err", err)
-				continue
-			}
-
-			// 7. delete processed txs from mempool
+			// 6. delete processed txs from mempool
 			if err := m.deleteTxs(ctx, newBlock); err != nil {
 				m.log.Error("failed to delete processed transactions", "err", err)
 			}
@@ -93,20 +85,20 @@ func (m *Miner) Start(ctx context.Context) error {
 	}
 }
 
-func (m *Miner) mineBlock(ctx context.Context, candidate *MiningCandidate) (*block.Block, error) {
+func (m *Miner) mineBlock(ctx context.Context, mc *MiningCandidate) (*block.Block, error) {
 	// 1. validate transactions
-	validTxs := m.validateTransactions(ctx, candidate.Txs)
+	validTxs := m.validateTransactions(ctx, mc.Txs)
 	if len(validTxs) == 0 {
 		return nil, errors.New("no valid transactions found")
 	}
 
 	// 2. create block TODO: with mining reward
 	block := &block.Block{
-		PrevHash:     candidate.PrevBlock.Hash,
-		Height:       candidate.PrevBlock.Height + 1,
-		Timestamp:    candidate.Timestamp,
+		PrevHash:     mc.PrevBlock.Hash,
+		Height:       mc.PrevBlock.Height + 1,
+		Timestamp:    mc.Timestamp,
 		Transactions: validTxs,
-		// Difficulty:   candidate.Difficulty,
+		// Difficulty:   mc.Difficulty,
 		// Transactions: append(validTxs, createRewardTx(m.reward)),
 	}
 
@@ -144,7 +136,7 @@ func (m *Miner) validateTransactions(ctx context.Context, txs []*transaction.Tra
 		}
 
 		// check sender balance
-		fromAccountRes, err := m.stateRPC.GetAccountByAddress(ctx, &proto.GetAccountByAddressRequest{Address: tx.From})
+		fromAccountRes, err := m.stateRPC.GetAccountByAddress(ctx, &proto.AccountByAddressReq{Address: tx.From})
 		if err != nil {
 			m.log.Error("failed getting account by address", "address", tx.From, "err", err)
 			continue
@@ -179,42 +171,24 @@ func (m *Miner) validateTransactions(ctx context.Context, txs []*transaction.Tra
 	return validTxs
 }
 
-func (m *Miner) submitBlock(ctx context.Context, block *block.Block) error {
-	blockPld := &proto.CreateBlockRequest{
+func (m *Miner) persistBlock(ctx context.Context, b *block.Block) error {
+	_, err := m.stateRPC.CreateBlock(ctx, &proto.CreateBlockReq{
 		Block: &proto.Block{
-			Hash:         block.Hash,
-			PrevHash:     block.PrevHash,
-			MerkleRoot:   block.MerkleRoot,
-			Height:       block.Height,
-			Nonce:        block.Nonce,
-			Transactions: transaction.ToProtoTxs(block.Transactions),
-		},
-	}
-
-	if _, err := m.blocksRPC.CreateBlock(ctx, blockPld); err != nil {
-		m.log.Error("failed to crete block", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (m *Miner) updateBalances(ctx context.Context, block *block.Block) error {
-	_, err := m.stateRPC.CreateStateChange(ctx, &proto.CreateStateRequest{
-		State: &proto.State{
-			BlockHash:    block.Hash,
-			BlockHeight:  block.Height,
-			Timestamp:    block.Timestamp,
-			Transactions: transaction.ToProtoTxs(block.Transactions),
+			Hash:         b.Hash,
+			Height:       b.Height,
+			PrevHash:     b.PrevHash,
+			MerkleRoot:   b.MerkleRoot,
+			Timestamp:    b.Timestamp,
+			Transactions: transaction.ToProtoTxs(b.Transactions),
 		},
 	})
 
 	return err
 }
 
-func (m *Miner) deleteTxs(ctx context.Context, block *block.Block) error {
+func (m *Miner) deleteTxs(ctx context.Context, b *block.Block) error {
 	var idsToDelete []int64
-	for _, tx := range block.Transactions {
+	for _, tx := range b.Transactions {
 		idsToDelete = append(idsToDelete, tx.ID)
 	}
 
