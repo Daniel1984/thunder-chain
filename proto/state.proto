@@ -5,13 +5,6 @@ option go_package = "./proto";
 
 import "mempool.proto";  // Import the mempool proto file
 
-message State {
-  string block_hash = 1;
-  uint64 block_height = 2;
-  int64 timestamp = 3;
-  repeated mempool.Transaction transactions = 4;
-}
-
 message Account {
   int64 id = 1;
   string address = 2;
@@ -20,23 +13,40 @@ message Account {
   int64 timestamp = 5;
 }
 
-message CreateStateRequest {
-  State state = 1;
+message Block {
+  string hash = 1;
+  string prev_hash = 2;
+  string merkle_root = 3;
+  int64 timestamp = 4;
+  uint64 height = 5;
+  uint64 nonce = 6;
+  repeated mempool.Transaction transactions = 7;
 }
 
-message CreateStateResponse {
+message CreateBlockReq {
+  Block block = 1;
+}
+
+message CreateBlockRes {
   string message = 1;
 }
 
-message GetAccountByAddressRequest {
+message AccountByAddressReq {
   string address = 1;
 }
 
-message GetAccountByAddressResponse {
+message AccountByAddressRes {
   Account account = 1;
 }
 
+message LastBlockReq {}
+
+message LastBlockRes {
+  Block block = 1;
+}
+
 service StateService {
-  rpc CreateStateChange(CreateStateRequest) returns (CreateStateResponse);
-  rpc GetAccountByAddress(GetAccountByAddressRequest) returns (GetAccountByAddressResponse);
+  rpc CreateBlock(CreateBlockReq) returns (CreateBlockRes);
+  rpc GetAccountByAddress(AccountByAddressReq) returns (AccountByAddressRes);
+  rpc GetLatestBlock(LastBlockReq) returns (LastBlockRes);
 }

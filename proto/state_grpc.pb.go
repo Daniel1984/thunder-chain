@@ -19,16 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StateService_CreateStateChange_FullMethodName   = "/state.StateService/CreateStateChange"
+	StateService_CreateBlock_FullMethodName         = "/state.StateService/CreateBlock"
 	StateService_GetAccountByAddress_FullMethodName = "/state.StateService/GetAccountByAddress"
+	StateService_GetLatestBlock_FullMethodName      = "/state.StateService/GetLatestBlock"
 )
 
 // StateServiceClient is the client API for StateService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StateServiceClient interface {
-	CreateStateChange(ctx context.Context, in *CreateStateRequest, opts ...grpc.CallOption) (*CreateStateResponse, error)
-	GetAccountByAddress(ctx context.Context, in *GetAccountByAddressRequest, opts ...grpc.CallOption) (*GetAccountByAddressResponse, error)
+	CreateBlock(ctx context.Context, in *CreateBlockReq, opts ...grpc.CallOption) (*CreateBlockRes, error)
+	GetAccountByAddress(ctx context.Context, in *AccountByAddressReq, opts ...grpc.CallOption) (*AccountByAddressRes, error)
+	GetLatestBlock(ctx context.Context, in *LastBlockReq, opts ...grpc.CallOption) (*LastBlockRes, error)
 }
 
 type stateServiceClient struct {
@@ -39,18 +41,27 @@ func NewStateServiceClient(cc grpc.ClientConnInterface) StateServiceClient {
 	return &stateServiceClient{cc}
 }
 
-func (c *stateServiceClient) CreateStateChange(ctx context.Context, in *CreateStateRequest, opts ...grpc.CallOption) (*CreateStateResponse, error) {
-	out := new(CreateStateResponse)
-	err := c.cc.Invoke(ctx, StateService_CreateStateChange_FullMethodName, in, out, opts...)
+func (c *stateServiceClient) CreateBlock(ctx context.Context, in *CreateBlockReq, opts ...grpc.CallOption) (*CreateBlockRes, error) {
+	out := new(CreateBlockRes)
+	err := c.cc.Invoke(ctx, StateService_CreateBlock_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *stateServiceClient) GetAccountByAddress(ctx context.Context, in *GetAccountByAddressRequest, opts ...grpc.CallOption) (*GetAccountByAddressResponse, error) {
-	out := new(GetAccountByAddressResponse)
+func (c *stateServiceClient) GetAccountByAddress(ctx context.Context, in *AccountByAddressReq, opts ...grpc.CallOption) (*AccountByAddressRes, error) {
+	out := new(AccountByAddressRes)
 	err := c.cc.Invoke(ctx, StateService_GetAccountByAddress_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stateServiceClient) GetLatestBlock(ctx context.Context, in *LastBlockReq, opts ...grpc.CallOption) (*LastBlockRes, error) {
+	out := new(LastBlockRes)
+	err := c.cc.Invoke(ctx, StateService_GetLatestBlock_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +72,9 @@ func (c *stateServiceClient) GetAccountByAddress(ctx context.Context, in *GetAcc
 // All implementations must embed UnimplementedStateServiceServer
 // for forward compatibility
 type StateServiceServer interface {
-	CreateStateChange(context.Context, *CreateStateRequest) (*CreateStateResponse, error)
-	GetAccountByAddress(context.Context, *GetAccountByAddressRequest) (*GetAccountByAddressResponse, error)
+	CreateBlock(context.Context, *CreateBlockReq) (*CreateBlockRes, error)
+	GetAccountByAddress(context.Context, *AccountByAddressReq) (*AccountByAddressRes, error)
+	GetLatestBlock(context.Context, *LastBlockReq) (*LastBlockRes, error)
 	mustEmbedUnimplementedStateServiceServer()
 }
 
@@ -70,11 +82,14 @@ type StateServiceServer interface {
 type UnimplementedStateServiceServer struct {
 }
 
-func (UnimplementedStateServiceServer) CreateStateChange(context.Context, *CreateStateRequest) (*CreateStateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateStateChange not implemented")
+func (UnimplementedStateServiceServer) CreateBlock(context.Context, *CreateBlockReq) (*CreateBlockRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateBlock not implemented")
 }
-func (UnimplementedStateServiceServer) GetAccountByAddress(context.Context, *GetAccountByAddressRequest) (*GetAccountByAddressResponse, error) {
+func (UnimplementedStateServiceServer) GetAccountByAddress(context.Context, *AccountByAddressReq) (*AccountByAddressRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccountByAddress not implemented")
+}
+func (UnimplementedStateServiceServer) GetLatestBlock(context.Context, *LastBlockReq) (*LastBlockRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLatestBlock not implemented")
 }
 func (UnimplementedStateServiceServer) mustEmbedUnimplementedStateServiceServer() {}
 
@@ -89,26 +104,26 @@ func RegisterStateServiceServer(s grpc.ServiceRegistrar, srv StateServiceServer)
 	s.RegisterService(&StateService_ServiceDesc, srv)
 }
 
-func _StateService_CreateStateChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateStateRequest)
+func _StateService_CreateBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBlockReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StateServiceServer).CreateStateChange(ctx, in)
+		return srv.(StateServiceServer).CreateBlock(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StateService_CreateStateChange_FullMethodName,
+		FullMethod: StateService_CreateBlock_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StateServiceServer).CreateStateChange(ctx, req.(*CreateStateRequest))
+		return srv.(StateServiceServer).CreateBlock(ctx, req.(*CreateBlockReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _StateService_GetAccountByAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAccountByAddressRequest)
+	in := new(AccountByAddressReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -120,7 +135,25 @@ func _StateService_GetAccountByAddress_Handler(srv interface{}, ctx context.Cont
 		FullMethod: StateService_GetAccountByAddress_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StateServiceServer).GetAccountByAddress(ctx, req.(*GetAccountByAddressRequest))
+		return srv.(StateServiceServer).GetAccountByAddress(ctx, req.(*AccountByAddressReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StateService_GetLatestBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LastBlockReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateServiceServer).GetLatestBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StateService_GetLatestBlock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateServiceServer).GetLatestBlock(ctx, req.(*LastBlockReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -133,12 +166,16 @@ var StateService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*StateServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateStateChange",
-			Handler:    _StateService_CreateStateChange_Handler,
+			MethodName: "CreateBlock",
+			Handler:    _StateService_CreateBlock_Handler,
 		},
 		{
 			MethodName: "GetAccountByAddress",
 			Handler:    _StateService_GetAccountByAddress_Handler,
+		},
+		{
+			MethodName: "GetLatestBlock",
+			Handler:    _StateService_GetLatestBlock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
