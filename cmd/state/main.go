@@ -13,6 +13,8 @@ import (
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/models/account"
 	"com.perkunas/internal/models/balancechange"
+	"com.perkunas/internal/models/block"
+	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -20,6 +22,9 @@ import (
 
 //go:embed sql/state.sql
 var stateSql string
+
+//go:embed genesis.json
+var genesisJson string
 
 const dbName = "state.db"
 
@@ -41,6 +46,13 @@ func main() {
 		log:                log,
 		accModel:           &account.Model{DB: db},
 		balanceChangeModel: &balancechange.Model{DB: db},
+		blockModel:         &block.Model{DB: db},
+		receiptModel:       &receipt.Model{DB: db},
+	}
+
+	if err := s.ensureGenesisBlock(ctx); err != nil {
+		s.log.Error("failed to create genesis block", "err", err)
+		os.Exit(1)
 	}
 
 	flag.StringVar(&s.apiPort, "apiport", os.Getenv("API_PORT"), "api port")

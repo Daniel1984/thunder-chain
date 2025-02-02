@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"sort"
 
 	"com.perkunas/internal/db"
 	"com.perkunas/internal/models/account"
 	"com.perkunas/internal/models/balancechange"
+	"com.perkunas/internal/models/block"
+	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
+	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -19,34 +24,65 @@ type State struct {
 	apiPort            string
 	db                 *db.DB
 	accModel           *account.Model
+	blockModel         *block.Model
+	receiptModel       *receipt.Model
 	balanceChangeModel *balancechange.Model
 }
 
-func (s *State) GetAccountByAddress(ctx context.Context, in *proto.GetAccountByAddressRequest) (*proto.GetAccountByAddressResponse, error) {
+func (s *State) ensureGenesisBlock(ctx context.Context) error {
+	hasGenesis, err := s.blockModel.HasGenesisBlock(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to check for genesis block presence %w", err)
+	}
+
+	if !hasGenesis {
+		// create genesis block
+		var block block.BlockDB
+		if err := json.Unmarshal([]byte(genesisJson), &block); err != nil {
+			return fmt.Errorf("unable to unmarshal genesis block json %w", err)
+		}
+
+		blockHash, err := block.CalculateHash()
+		if err != nil {
+			return fmt.Errorf("unable to calculate genesis block hash %w", err)
+		}
+
+		block.Hash = blockHash
+		block.TransactionsDB = "[]"
+		if err := s.blockModel.Save(ctx, block); err != nil {
+			return fmt.Errorf("unable to persist genesis block %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *State) GetAccountByAddress(ctx context.Context, in *proto.AccountByAddressReq) (*proto.AccountByAddressRes, error) {
 	acc, err := s.accModel.Get(ctx, in.GetAddress())
 	if err != nil {
 		s.log.Error("failed to get account", "err", err, "addr", in.GetAddress())
 		return nil, status.Error(codes.Internal, "failed to get account")
 	}
 
-	return &proto.GetAccountByAddressResponse{
+	return &proto.AccountByAddressRes{
 		Account: acc.ToProto(),
 	}, nil
 }
 
-func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequest) (*proto.CreateStateResponse, error) {
-	sc := in.GetState()
-	if sc == nil {
+func (s *State) CreateBlock(ctx context.Context, in *proto.CreateBlockReq) (*proto.CreateBlockRes, error) {
+	block := in.GetBlock()
+	if block == nil {
 		s.log.Info("missing balance change data")
-		return nil, status.Error(codes.Aborted, "missing balance change data")
+		return &proto.CreateBlockRes{Message: "NO_STATE_DATA"}, nil
 	}
 
-	txs := sc.GetTransactions()
+	txs := block.GetTransactions()
 	if len(txs) == 0 {
-		s.log.Info("balance change missing transactions")
-		return nil, status.Error(codes.Aborted, "balance change missing transactions")
+		s.log.Info("missing transactions to update balances")
+		return &proto.CreateBlockRes{Message: "MISSING_STATE_TXS"}, nil
 	}
 
+	// order by timestamp so we process older txs first
 	sort.Slice(txs, func(i, j int) bool {
 		return txs[i].GetTimestamp() < txs[j].GetTimestamp()
 	})
@@ -57,19 +93,36 @@ func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequ
 		return nil, status.Error(codes.Internal, "failed to begin DB transaction")
 	}
 
+	if err := s.updateBalances(ctx, dbTx, txs, block); err != nil {
+		s.log.Error("failed updating balances", "err", err)
+		dbTx.Rollback()
+		return nil, status.Error(codes.Internal, "failed updating balances")
+	}
+
+	if err := s.createBlock(ctx, dbTx, txs, block); err != nil {
+		s.log.Error("failed creating block", "err", err)
+		dbTx.Rollback()
+		return nil, status.Error(codes.Internal, "failed creating block")
+	}
+
+	if err := dbTx.Commit(); err != nil {
+		s.log.Error("failed creating block", "err", err)
+		return nil, status.Error(codes.Internal, "failed creating block")
+	}
+
+	return &proto.CreateBlockRes{Message: "STATE_UPDATED"}, nil
+}
+
+func (s *State) updateBalances(ctx context.Context, dbTx *sqlx.Tx, txs []*proto.Transaction, pb *proto.Block) error {
 	for _, tx := range txs {
 		fromAcc, err := s.accModel.UpsertNoUpdate(ctx, dbTx, tx.GetFromAddr())
 		if err != nil {
-			s.log.Error("failed to get src account", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to get src account")
+			return fmt.Errorf("failed to upsert src account %w", err)
 		}
 
 		toAcc, err := s.accModel.UpsertNoUpdate(ctx, dbTx, tx.GetToAddr())
 		if err != nil {
-			s.log.Error("failed to get dest account", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to get dest account")
+			return fmt.Errorf("failed to upsert dest account %w", err)
 		}
 
 		fromAccBc := balancechange.BalanceChange{
@@ -77,16 +130,14 @@ func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequ
 			NewBalance:      fromAcc.Balance - tx.GetAmount() - tx.GetFee(),
 			ChangeAmount:    -(tx.GetAmount() + tx.GetFee()),
 			AccountID:       fromAcc.ID,
-			BlockHeight:     sc.GetBlockHeight(),
-			BlockHash:       sc.GetBlockHash(),
+			BlockHeight:     pb.GetHeight(),
+			BlockHash:       pb.GetHash(),
 			TxHash:          tx.GetHash(),
 			Timestamp:       tx.GetTimestamp(),
 		}
 
 		if err := s.balanceChangeModel.Crete(ctx, dbTx, fromAccBc); err != nil {
-			s.log.Error("failed to create source acc balance change record", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to create source acc balance change record")
+			return fmt.Errorf("failed to create source acc balance change record %w", err)
 		}
 
 		if _, err := s.accModel.Upsert(ctx, dbTx, account.Account{
@@ -94,9 +145,7 @@ func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequ
 			Balance: fromAccBc.NewBalance,
 			Nonce:   fromAcc.Nonce + 1,
 		}); err != nil {
-			s.log.Error("failed to update source account balance", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to update source account balance")
+			return fmt.Errorf("failed to update source account balance %w", err)
 		}
 
 		toAccBc := balancechange.BalanceChange{
@@ -104,16 +153,14 @@ func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequ
 			NewBalance:      toAcc.Balance + tx.GetAmount(),
 			ChangeAmount:    tx.GetAmount(),
 			AccountID:       toAcc.ID,
-			BlockHeight:     sc.GetBlockHeight(),
-			BlockHash:       sc.GetBlockHash(),
+			BlockHeight:     pb.GetHeight(),
+			BlockHash:       pb.GetHash(),
 			TxHash:          tx.GetHash(),
 			Timestamp:       tx.GetTimestamp(),
 		}
 
 		if err := s.balanceChangeModel.Crete(ctx, dbTx, toAccBc); err != nil {
-			s.log.Error("failed to create destination acc balance change record", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to create destination acc balance change record")
+			return fmt.Errorf("failed to create destination acc balance change record %w", err)
 		}
 
 		if _, err := s.accModel.Upsert(ctx, dbTx, account.Account{
@@ -121,16 +168,52 @@ func (s *State) CreateStateChange(ctx context.Context, in *proto.CreateStateRequ
 			Balance: toAccBc.NewBalance,
 			Nonce:   toAcc.Nonce + 1,
 		}); err != nil {
-			s.log.Error("failed to update destination account balance", "err", err)
-			dbTx.Rollback()
-			return nil, status.Error(codes.Internal, "failed to update destination account balance")
+			return fmt.Errorf("failed to update destination account balance %w", err)
 		}
 	}
 
-	if err := dbTx.Commit(); err != nil {
-		s.log.Error("failed updating block state", "err", err)
-		return nil, status.Error(codes.Internal, "failed updating block state")
+	return nil
+}
+
+func (s *State) createBlock(ctx context.Context, dbTx *sqlx.Tx, txs []*proto.Transaction, pb *proto.Block) error {
+	txsJson, err := json.Marshal(txs)
+	if err != nil {
+		return fmt.Errorf("createBlock failed to Marshal txs %w", err)
 	}
 
-	return &proto.CreateStateResponse{Message: "STATE_UPDATED"}, nil
+	blockPld := block.BlockDB{
+		Block: block.Block{
+			Hash:       pb.GetHash(),
+			PrevHash:   pb.GetPrevHash(),
+			MerkleRoot: pb.GetMerkleRoot(),
+			Timestamp:  pb.GetTimestamp(),
+			Height:     pb.GetHeight(),
+			Nonce:      pb.GetNonce(),
+			// Difficulty: pb.GetDifficulty(),
+		},
+		TransactionsDB: string(txsJson),
+	}
+
+	if err := s.blockModel.SaveWithTX(ctx, dbTx, blockPld); err != nil {
+		return fmt.Errorf("failed persisting block data %w, height: %v, block_hash: %v", err, blockPld.Height, blockPld.Hash)
+	}
+
+	receiptsPld := receipt.ProtoToReceipts(txs, pb.GetHash())
+	if err := s.receiptModel.InsertBatch(ctx, dbTx, receiptsPld); err != nil {
+		return fmt.Errorf("failed persisting receipts %w", err)
+	}
+
+	return nil
+}
+
+func (s *State) GetLatestBlock(ctx context.Context, in *proto.LastBlockReq) (*proto.LastBlockRes, error) {
+	latestBlock, err := s.blockModel.GetLatest(ctx)
+	if err != nil {
+		s.log.Info("failed getting latest block data", "err", err)
+		return nil, status.Error(codes.Internal, "failed getting latest block data")
+	}
+
+	return &proto.LastBlockRes{
+		Block: block.ToProtoBlock(latestBlock),
+	}, nil
 }
