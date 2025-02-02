@@ -24,7 +24,6 @@ services:
       - "8080:8080"
     environment:
       - MEMPOOL_API=mempool:8181
-      - BLOCKS_API=blocks:8282
       - API_PORT=8080
     volumes:
       - ./data:/data
@@ -32,23 +31,6 @@ services:
       watch:
         - action: rebuild
           path: ./cmd/node
-          target: ./app
-          ignore:
-            - .git/
-  blocks:
-    build:
-      dockerfile: ./cmd/blocks/Dockerfile
-      context: .
-    ports:
-      - "8282:8282"
-    environment:
-      - API_PORT=8282
-    volumes:
-      - ./data:/data
-    develop:
-      watch:
-        - action: rebuild
-          path: ./cmd/blocks
           target: ./app
           ignore:
             - .git/
@@ -77,7 +59,6 @@ services:
       - "8484:8484"
     environment:
       - MEMPOOL_API=mempool:8181
-      - BLOCKS_API=blocks:8282
       - STATE_API=state:8383
     volumes:
       - ./data:/data
