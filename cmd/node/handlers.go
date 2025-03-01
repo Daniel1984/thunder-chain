@@ -47,3 +47,18 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 		n.log.Error("failed responding to create transaction request", "err", err)
 	}
 }
+
+func (n *Node) nodeStatus(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	lb, err := n.stateRPC.GetLatestBlock(r.Context(), &proto.LastBlockReq{})
+	if err != nil {
+		n.log.Error("could not get latest block", "err", err)
+		http.Error(w, "could not get latest block", http.StatusBadRequest)
+		return
+	}
+
+	if err := httpjsonres.JSON(w, http.StatusOK, lb); err != nil {
+		n.log.Error("failed responding to get latest block from stet service", "err", err)
+	}
+}

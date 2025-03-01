@@ -52,6 +52,7 @@ func main() {
 	defer stateConn.Close()
 	n.stateRPC = stateClient
 
+	// start http server
 	srv := httpServer(n.getRouter(), n.apiPort)
 	n.log.Info("api server started", "port exposed", n.apiPort)
 	if err := srv.Start(); err != nil {
