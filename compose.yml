@@ -7,8 +7,9 @@ services:
       - "8181:8181"
     environment:
       - API_PORT=8181
+      - DB_PATH=/data/mempool.db
     volumes:
-      - ./data:/data
+      - ./cmd/mempool/data:/data
     develop:
       watch:
         - action: rebuild
@@ -16,6 +17,7 @@ services:
           target: ./app
           ignore:
             - .git/
+            - data/
   node:
     build:
       dockerfile: ./cmd/node/Dockerfile
@@ -24,9 +26,8 @@ services:
       - "8080:8080"
     environment:
       - MEMPOOL_API=mempool:8181
+      - STATE_API=state:8383
       - API_PORT=8080
-    volumes:
-      - ./data:/data
     develop:
       watch:
         - action: rebuild
@@ -42,8 +43,9 @@ services:
       - "8383:8383"
     environment:
       - API_PORT=8383
+      - DB_PATH=/data/state.db
     volumes:
-      - ./data:/data
+      - ./cmd/state/data:/data
     develop:
       watch:
         - action: rebuild
@@ -51,17 +53,16 @@ services:
           target: ./app
           ignore:
             - .git/
+            - data/
   miner:
     build:
       dockerfile: ./cmd/miner/Dockerfile
       context: .
-    ports:
-      - "8484:8484"
     environment:
       - MEMPOOL_API=mempool:8181
       - STATE_API=state:8383
     volumes:
-      - ./data:/data
+      - ./cmd/miner/data:/data
     develop:
       watch:
         - action: rebuild
@@ -69,3 +70,4 @@ services:
           target: ./app
           ignore:
             - .git/
+            - data/
