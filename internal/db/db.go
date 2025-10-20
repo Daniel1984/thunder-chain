@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/jmoiron/sqlx"
@@ -41,16 +39,7 @@ func (db *DB) Ping(ctx context.Context) error {
 	return nil
 }
 
-func NewDB(ctx context.Context, dbName string) (*DB, error) {
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current working directory: %w", err)
-	}
-
-	// Construct the path to the database file
-	dbPath := filepath.Join(cwd, "data", dbName)
-
+func NewDB(ctx context.Context, dbPath string) (*DB, error) {
 	connectionUrlParams := make(url.Values)
 	connectionUrlParams.Add("_txlock", "immediate")
 	connectionUrlParams.Add("_journal_mode", "WAL")
