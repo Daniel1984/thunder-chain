@@ -26,7 +26,7 @@ var stateSql string
 //go:embed genesis.json
 var genesisJson string
 
-const dbName = "state.db"
+var dbPath string
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -34,9 +34,10 @@ func main() {
 
 	log := logger.WithJSONFormat().With(slog.String("scope", "state-svc"))
 
-	db, err := dbConnect(ctx, dbName, stateSql)
+	flag.StringVar(&dbPath, "db-path", os.Getenv("DB_PATH"), "state db absolute path")
+	db, err := dbConnect(ctx, dbPath, stateSql)
 	if err != nil {
-		log.Error(fmt.Sprintf("failed connecting to %s", dbName), "err", err)
+		log.Error(fmt.Sprintf("failed connecting to %s", dbPath), "err", err)
 		os.Exit(1)
 	}
 	defer db.Close()
