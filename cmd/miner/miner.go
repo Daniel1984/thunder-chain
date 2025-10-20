@@ -28,6 +28,11 @@ type MiningCandidate struct {
 	Timestamp  int64
 }
 
+func (m *Miner) getCurrentDifficulty() uint64 {
+	// Implement logic to get current difficulty
+	return 1
+}
+
 func (m *Miner) Start(ctx context.Context) error {
 	for {
 		time.Sleep(20 * time.Second)
@@ -58,10 +63,10 @@ func (m *Miner) Start(ctx context.Context) error {
 
 			// 3. create candidate block
 			candidate := &MiningCandidate{
-				PrevBlock: prevBlock.GetBlock(),
-				Txs:       transaction.FromProtoTxs(txs),
-				// Difficulty: m.getCurrentDifficulty(),
-				// Timestamp:  time.Now().Unix(),
+				PrevBlock:  prevBlock.GetBlock(),
+				Txs:        transaction.FromProtoTxs(txs),
+				Difficulty: m.getCurrentDifficulty(),
+				Timestamp:  time.Now().Unix(),
 			}
 
 			// 4. mine block (find valid nonce)
@@ -92,17 +97,16 @@ func (m *Miner) mineBlock(ctx context.Context, mc *MiningCandidate) (*block.Bloc
 		return nil, errors.New("no valid transactions found")
 	}
 
-	// 2. create block TODO: with mining reward
+	// 2. TODO: create block with mining reward
 	block := &block.Block{
 		PrevHash:     mc.PrevBlock.Hash,
 		Height:       mc.PrevBlock.Height + 1,
 		Timestamp:    mc.Timestamp,
 		Transactions: validTxs,
-		// Difficulty:   mc.Difficulty,
-		// Transactions: append(validTxs, createRewardTx(m.reward)),
+		Difficulty:   mc.Difficulty,
 	}
 
-	// 3. find valid nonce (Proof of Work)
+	// 3. find valid nonce (Proof of Work?)
 	for nonce := uint64(0); ; nonce++ {
 		select {
 		case <-ctx.Done():
