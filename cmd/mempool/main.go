@@ -17,8 +17,11 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-//go:embed sql/mempool.sql
-var mempoolsql string
+var (
+	//go:embed sql/mempool.sql
+	mempoolsql string
+	dbPath     string
+)
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -26,8 +29,8 @@ func main() {
 
 	log := logger.WithJSONFormat().With(slog.String("scope", "mempool"))
 
-	// initialize sqlite db for mempool persistance layer
-	db, err := db.NewDB(ctx, "mempool.db")
+	flag.StringVar(&dbPath, "db-path", os.Getenv("DB_PATH"), "mempool db absolute path")
+	db, err := db.NewDB(ctx, dbPath)
 	if err != nil {
 		log.Error("failed connecting DB", "err", err)
 		os.Exit(1)
