@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 
 	"com.perkunas/internal/db"
 	"github.com/jmoiron/sqlx"
@@ -51,6 +52,23 @@ func (am *Model) UpsertNoUpdate(ctx context.Context, db *sqlx.Tx, addr string) (
 	}
 
 	return acc, nil
+}
+
+func (am *Model) BatchInsert(ctx context.Context, db *sqlx.Tx, accounts []Account) error {
+	if len(accounts) == 0 {
+		return nil
+	}
+
+	query := `INSERT INTO accounts (address, balance, nonce) VALUES (:address, :balance, :nonce)`
+
+	for _, acc := range accounts {
+		_, err := db.NamedExecContext(ctx, query, acc)
+		if err != nil {
+			return fmt.Errorf("failed to insert account %s: %w", acc.Address, err)
+		}
+	}
+
+	return nil
 }
 
 func (am *Model) Get(ctx context.Context, addr string) (Account, error) {
