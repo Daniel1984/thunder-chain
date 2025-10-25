@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"com.perkunas/internal/models/transaction"
-	"github.com/ethereum/go-ethereum/crypto"
+	"com.perkunas/pkg/wallet"
 	"github.com/spf13/cobra"
 )
 
@@ -78,27 +77,19 @@ func signTransaction(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Parse private key
-	privateKeyBytes, err := hex.DecodeString(privateKey)
+	// Create wallet from private key
+	w, err := wallet.FromPrivateKey(privateKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid private key format: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	privKey, err := crypto.ToECDSA(privateKeyBytes)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid private key: %v\n", err)
+	// Verify that the from address matches the wallet address
+	if from != w.Address {
+		fmt.Fprintf(os.Stderr, "Error: from address %s does not match wallet address %s\n", from, w.Address)
 		os.Exit(1)
 	}
 
-	// Verify that the from address matches the private key
-	expectedAddress := crypto.PubkeyToAddress(privKey.PublicKey).Hex()
-	if from != expectedAddress {
-		fmt.Fprintf(os.Stderr, "Error: from address %s does not match private key address %s\n", from, expectedAddress)
-		os.Exit(1)
-	}
-
-	// Create transaction
 	tx := &transaction.Transaction{
 		From:      from,
 		To:        to,
@@ -114,7 +105,7 @@ func signTransaction(cmd *cobra.Command, args []string) {
 	tx.SetHash()
 
 	// Sign transaction
-	if err := transaction.SignTransaction(tx, privKey); err != nil {
+	if err := w.SignTransaction(tx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to sign transaction: %v\n", err)
 		os.Exit(1)
 	}
@@ -136,23 +127,15 @@ func signTransaction(cmd *cobra.Command, args []string) {
 }
 
 func generateKeys(cmd *cobra.Command, args []string) {
-	// Generate a new private key
-	privateKey, err := crypto.GenerateKey()
+	w, err := wallet.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to generate private key: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: failed to generate wallet: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Get the public key address
-	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-
-	// Get the private key as hex string
-	privateKeyHex := hex.EncodeToString(crypto.FromECDSA(privateKey))
-
-	// Output the key pair
 	fmt.Println("Generated Key Pair:")
-	fmt.Printf("Private Key: %s\n", privateKeyHex)
-	fmt.Printf("Address:     %s\n", address)
+	fmt.Printf("Private Key: %s\n", w.GetPrivateKeyHex())
+	fmt.Printf("Address:     %s\n", w.Address)
 }
 
 func main() {
