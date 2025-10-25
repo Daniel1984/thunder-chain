@@ -1,26 +1,13 @@
 package transaction
 
 import (
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 
+	"com.perkunas/internal/errmsg"
 	"com.perkunas/proto"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-var (
-	ErrInvalidSignature        = errors.New("invalid signature")
-	ErrInvalidPublicKey        = errors.New("invalid public key")
-	ErrSigningError            = errors.New("signing error")
-	ErrInvalidDataLen          = errors.New("invalid data length")
-	ErrInvalidHash             = errors.New("invalid transaction hash")
-	ErrInvalidSignatureFormat  = errors.New("invalid signature format")
-	ErrSignatureRecoveryFailed = errors.New("failed to recover public key from signature")
-	ErrInvalidPublicKeyFormat  = errors.New("invalid public key format")
-	ErrSignatureSenderMismatch = errors.New("signature does not match sender address")
 )
 
 type Transaction struct {
@@ -62,52 +49,31 @@ func (t *Transaction) Verify() error {
 	// Verify signature and sender first
 	sigBytes, err := hex.DecodeString(t.Signature)
 	if err != nil {
-		return ErrInvalidSignatureFormat
+		return errmsg.ErrInvalidSignatureFormat
 	}
 
 	msgHash := crypto.Keccak256Hash(t.CalculateHash())
 	pubKey, err := crypto.Ecrecover(msgHash.Bytes(), sigBytes)
 	if err != nil {
-		return ErrSignatureRecoveryFailed
+		return errmsg.ErrSignatureRecoveryFailed
 	}
 
 	publicKeyECDSA, err := crypto.UnmarshalPubkey(pubKey)
 	if err != nil {
-		return ErrInvalidPublicKeyFormat
+		return errmsg.ErrInvalidPublicKeyFormat
 	}
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 	if address != t.From {
-		return ErrSignatureSenderMismatch
+		return errmsg.ErrSignatureSenderMismatch
 	}
 
 	// Then verify hash matches data
 	calculatedHash := hex.EncodeToString(t.CalculateHash())
 	if calculatedHash != t.Hash {
-		return ErrInvalidHash
+		return errmsg.ErrInvalidHash
 	}
 
-	return nil
-}
-
-// Reference for client-side signing
-func SignTransaction(tx *Transaction, privateKey *ecdsa.PrivateKey) error {
-	if privateKey == nil {
-		return ErrSigningError
-	}
-
-	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	if tx.From != address {
-		return ErrSignatureSenderMismatch
-	}
-
-	hash := crypto.Keccak256Hash(tx.CalculateHash())
-	signature, err := crypto.Sign(hash.Bytes(), privateKey)
-	if err != nil {
-		return ErrSigningError
-	}
-
-	tx.Signature = hex.EncodeToString(signature)
 	return nil
 }
 
