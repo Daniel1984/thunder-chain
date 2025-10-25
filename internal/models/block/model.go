@@ -29,16 +29,6 @@ func (bm *Model) SaveWithTX(ctx context.Context, db *sqlx.Tx, b BlockDB) error {
 	return err
 }
 
-func (bm *Model) HasGenesisBlock(ctx context.Context) (bool, error) {
-	query := `
-		SELECT COUNT(*) FROM blocks
-		WHERE height = ?
-	`
-	var count int
-	err := bm.DB.ReadDB.GetContext(ctx, &count, query, 0)
-	return count > 0, err
-}
-
 func (bm *Model) GetLatest(ctx context.Context) (Block, error) {
 	query := `
 		SELECT
