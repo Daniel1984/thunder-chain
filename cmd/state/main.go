@@ -14,6 +14,7 @@ import (
 	"com.perkunas/internal/models/account"
 	"com.perkunas/internal/models/balancechange"
 	"com.perkunas/internal/models/block"
+	"com.perkunas/internal/models/genesisblock"
 	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
@@ -48,6 +49,7 @@ func main() {
 		accModel:           &account.Model{DB: db},
 		balanceChangeModel: &balancechange.Model{DB: db},
 		blockModel:         &block.Model{DB: db},
+		genesisBlockModel:  &genesisblock.Model{DB: db},
 		receiptModel:       &receipt.Model{DB: db},
 	}
 

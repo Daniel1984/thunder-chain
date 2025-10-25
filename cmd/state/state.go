@@ -11,6 +11,7 @@ import (
 	"com.perkunas/internal/models/account"
 	"com.perkunas/internal/models/balancechange"
 	"com.perkunas/internal/models/block"
+	"com.perkunas/internal/models/genesisblock"
 	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
 	"github.com/jmoiron/sqlx"
@@ -25,32 +26,49 @@ type State struct {
 	db                 *db.DB
 	accModel           *account.Model
 	blockModel         *block.Model
+	genesisBlockModel  *genesisblock.Model
 	receiptModel       *receipt.Model
 	balanceChangeModel *balancechange.Model
 }
 
 func (s *State) ensureGenesisBlock(ctx context.Context) error {
-	hasGenesis, err := s.blockModel.HasGenesisBlock(ctx)
+	hasGenesis, err := s.genesisBlockModel.HasGenesisBlock(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to check for genesis block presence %w", err)
 	}
 
 	if !hasGenesis {
 		// create genesis block
-		var block block.BlockDB
-		if err := json.Unmarshal([]byte(genesisJson), &block); err != nil {
+		var gBlock genesisblock.GenesisBlock
+		if err := json.Unmarshal([]byte(genesisJson), &gBlock); err != nil {
 			return fmt.Errorf("unable to unmarshal genesis block json %w", err)
 		}
 
-		blockHash, err := block.CalculateHash()
+		blockHash, err := gBlock.CalculateHash()
 		if err != nil {
 			return fmt.Errorf("unable to calculate genesis block hash %w", err)
 		}
 
-		block.Hash = blockHash
-		block.TransactionsDB = "[]"
-		if err := s.blockModel.Save(ctx, block); err != nil {
+		gBlock.Hash = blockHash
+		gBlock.TransactionsDB = "[]"
+
+		dbTx, err := s.db.WriteDB.BeginTxx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to begin DB transaction %w", err)
+		}
+
+		if err := s.genesisBlockModel.SaveWithTX(ctx, dbTx, gBlock); err != nil {
+			dbTx.Rollback()
 			return fmt.Errorf("unable to persist genesis block %w", err)
+		}
+
+		if err := s.accModel.BatchInsert(ctx, dbTx, gBlock.Accounts); err != nil {
+			dbTx.Rollback()
+			return fmt.Errorf("unable to persist genesis accounts %w", err)
+		}
+
+		if err := dbTx.Commit(); err != nil {
+			return fmt.Errorf("failed creating genesis block %w", err)
 		}
 	}
 
