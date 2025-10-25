@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"crypto/ed25519"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,8 +11,9 @@ func TestNewWallet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, wallet)
 
-	assert.Len(t, wallet.PublicKey, ed25519.PublicKeySize)
-	assert.Len(t, wallet.PrivateKey, ed25519.PrivateKeySize)
+	// Test that keys are not nil
+	assert.NotNil(t, wallet.PublicKey)
+	assert.NotNil(t, wallet.PrivateKey)
 
 	// Test address format
 	assert.True(t, len(wallet.Address) == 42)
@@ -21,8 +21,10 @@ func TestNewWallet(t *testing.T) {
 
 	// Test hex conversions
 	pubHex := wallet.GetPublicKeyHex()
-	assert.Len(t, pubHex, ed25519.PublicKeySize*2)
+	// ECDSA public key is 65 bytes (130 hex chars) when uncompressed with 0x04 prefix
+	assert.Len(t, pubHex, 130)
 
 	privHex := wallet.GetPrivateKeyHex()
-	assert.Len(t, privHex, ed25519.PrivateKeySize*2)
+	// ECDSA private key is 32 bytes (64 hex chars)
+	assert.Len(t, privHex, 64)
 }
