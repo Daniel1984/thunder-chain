@@ -34,6 +34,20 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fromAcc, err := n.stateRPC.GetAccountByAddress(r.Context(), &proto.AccountByAddressReq{Address: txn.From})
+	if err != nil {
+		n.log.Error("could not get account by address", "err", err)
+		http.Error(w, "could not get account by address", http.StatusBadRequest)
+		return
+	}
+
+	accNonce := fromAcc.GetAccount().GetNonce()
+	if txn.Nonce != accNonce+1 {
+		n.log.Warn("invalid nonce", "acc nonce", accNonce, "tx nonce", txn.Nonce)
+		http.Error(w, "invalid nonce", http.StatusBadRequest)
+		return
+	}
+
 	protoTxn := transaction.ToProtoTx(txn)
 	pld := &proto.CreateMempoolRequest{Transaction: protoTxn}
 	createResp, err := n.mempoolRPC.CreateMempool(r.Context(), pld)
