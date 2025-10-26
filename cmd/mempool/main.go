@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -25,18 +26,12 @@ func main() {
 	log := logger.WithJSONFormat().With(slog.String("scope", "mempool"))
 	flag.StringVar(&dbPath, "db-path", os.Getenv("DB_PATH"), "mempool db absolute path")
 
-	db, err := db.NewDB(ctx, dbPath)
+	db, err := dbConnect(ctx, dbPath, mempoolsql)
 	if err != nil {
-		log.Error("failed connecting DB", "err", err)
+		log.Error(fmt.Sprintf("failed connecting to %s", dbPath), "err", err)
 		os.Exit(1)
 	}
 	defer db.Close()
-
-	// run migrations
-	if _, err := db.WriteDB.ExecContext(ctx, mempoolsql); err != nil {
-		log.Error("failed migrating db", "err", err)
-		os.Exit(1)
-	}
 
 	mempoolSvc := &Mempool{
 		log:     log,
@@ -51,4 +46,17 @@ func main() {
 		log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
+}
+
+func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
+	db, err := db.NewDB(ctx, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("failed connecting to %s db %w", dbName, err)
+	}
+
+	if _, err := db.WriteDB.ExecContext(ctx, sql); err != nil {
+		return nil, fmt.Errorf("failed migrating %s db %w", dbName, err)
+	}
+
+	return db, nil
 }
