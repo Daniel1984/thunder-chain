@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"net"
+	"time"
 
 	"com.perkunas/internal/models/transaction"
+	"com.perkunas/internal/scheduler"
 	"com.perkunas/proto"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -51,4 +57,37 @@ func (mp *Mempool) PendingTransactions(ctx context.Context, in *proto.PendingTra
 
 	protoTxs := transaction.ToProtoTxs(txs)
 	return &proto.PendingTransactionsResponse{Transactions: protoTxs}, nil
+}
+
+func (mp *Mempool) SpawnCleanupJob(ctx context.Context) *scheduler.Job {
+	cleanupJob := &scheduler.Job{
+		Interval: time.Minute,
+		Task: func(ctx context.Context) {
+			if res, err := mp.txModel.ClearExpired(ctx); err != nil {
+				mp.log.Error("failed clearing expired transactions", "err", err)
+			} else {
+				affected, _ := res.RowsAffected()
+				if affected > 0 {
+					mp.log.Info("cleared expired transactions", "count", affected)
+				}
+			}
+		},
+	}
+
+	cleanupJob.Start(ctx)
+	return cleanupJob
+}
+
+func (mp *Mempool) Start() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", mp.apiPort))
+	if err != nil {
+		return fmt.Errorf("failed starting net listener %w", err)
+	}
+
+	server := grpc.NewServer()
+	reflection.Register(server)
+	proto.RegisterMempoolServiceServer(server, mp)
+
+	mp.log.Info("rpc server started", "port exposed", mp.apiPort)
+	return server.Serve(listener)
 }
