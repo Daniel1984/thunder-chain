@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -65,4 +66,13 @@ func (tm *Model) Pending(ctx context.Context) ([]*Transaction, error) {
 	}
 
 	return res, nil
+}
+
+func (tm *Model) ClearExpired(ctx context.Context) (sql.Result, error) {
+	query := `
+		DELETE FROM mempool
+		WHERE expires < strftime('%s', 'now')
+	`
+
+	return tm.DB.WriteDB.ExecContext(ctx, query)
 }
