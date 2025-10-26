@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"sort"
 
 	"com.perkunas/internal/db"
@@ -15,7 +16,9 @@ import (
 	"com.perkunas/internal/models/receipt"
 	"com.perkunas/proto"
 	"github.com/jmoiron/sqlx"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -234,4 +237,18 @@ func (s *State) GetLatestBlock(ctx context.Context, in *proto.LastBlockReq) (*pr
 	return &proto.LastBlockRes{
 		Block: block.ToProtoBlock(latestBlock),
 	}, nil
+}
+
+func (s *State) Start() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", s.apiPort))
+	if err != nil {
+		return fmt.Errorf("failed starting net listener %w", err)
+	}
+
+	server := grpc.NewServer()
+	reflection.Register(server)
+	proto.RegisterStateServiceServer(server, s)
+
+	s.log.Info("rpc server started", "port exposed", s.apiPort)
+	return server.Serve(listener)
 }

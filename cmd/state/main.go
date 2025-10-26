@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 
 	"com.perkunas/internal/db"
@@ -16,9 +15,6 @@ import (
 	"com.perkunas/internal/models/block"
 	"com.perkunas/internal/models/genesisblock"
 	"com.perkunas/internal/models/receipt"
-	"com.perkunas/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 //go:embed sql/state.sql
@@ -59,9 +55,8 @@ func main() {
 	}
 
 	flag.StringVar(&s.apiPort, "apiport", os.Getenv("API_PORT"), "api port")
-	s.log.Info("rpc server started", "port exposed", s.apiPort)
-	if err := serve(s.apiPort, s); err != nil {
-		s.log.Error("failed to start grpc server", "err", err)
+	if err := s.Start(); err != nil {
+		log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
 }
@@ -77,18 +72,4 @@ func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
 	}
 
 	return db, nil
-}
-
-func serve(port string, service proto.StateServiceServer) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-	if err != nil {
-		return fmt.Errorf("failed starting net listener %w", err)
-	}
-
-	server := grpc.NewServer()
-	reflection.Register(server)
-
-	proto.RegisterStateServiceServer(server, service)
-
-	return server.Serve(listener)
 }
