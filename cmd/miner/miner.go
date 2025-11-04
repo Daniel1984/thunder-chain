@@ -21,16 +21,15 @@ type Miner struct {
 }
 
 type MiningCandidate struct {
-	PrevBlock  *proto.Block
-	Txs        []*transaction.Transaction
-	Difficulty uint64
-	Nonce      uint64
-	Timestamp  int64
+	PrevBlock *proto.Block
+	Txs       []*transaction.Transaction
+	Nonce     uint64
+	Timestamp int64
 }
 
 func (m *Miner) getCurrentDifficulty() uint64 {
 	// Implement logic to get current difficulty
-	return 1
+	return 2
 }
 
 func (m *Miner) Start(ctx context.Context) error {
@@ -63,10 +62,9 @@ func (m *Miner) Start(ctx context.Context) error {
 
 			// 3. create candidate block
 			candidate := &MiningCandidate{
-				PrevBlock:  prevBlock.GetBlock(),
-				Txs:        transaction.FromProtoTxs(txs),
-				Difficulty: m.getCurrentDifficulty(),
-				Timestamp:  time.Now().Unix(),
+				PrevBlock: prevBlock.GetBlock(),
+				Txs:       transaction.FromProtoTxs(txs),
+				Timestamp: time.Now().Unix(),
 			}
 
 			// 4. mine block (find valid nonce)
@@ -103,7 +101,6 @@ func (m *Miner) mineBlock(ctx context.Context, mc *MiningCandidate) (*block.Bloc
 		Height:       mc.PrevBlock.Height + 1,
 		Timestamp:    mc.Timestamp,
 		Transactions: validTxs,
-		Difficulty:   mc.Difficulty,
 	}
 
 	// 3. find valid nonce (Proof of Work?)
@@ -119,7 +116,7 @@ func (m *Miner) mineBlock(ctx context.Context, mc *MiningCandidate) (*block.Bloc
 			}
 			block.Hash = hash
 
-			if isHashValid(block.Hash, block.Difficulty) {
+			if isHashValid(block.Hash, m.getCurrentDifficulty()) {
 				return block, nil
 			}
 		}
