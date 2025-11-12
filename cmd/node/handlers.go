@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -12,6 +13,8 @@ import (
 
 func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 
 	var txn transaction.Transaction
 	if err := json.NewDecoder(r.Body).Decode(&txn); err != nil {
@@ -34,7 +37,7 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fromAcc, err := n.stateRPC.GetAccountByAddress(r.Context(), &proto.AccountByAddressReq{Address: txn.From})
+	fromAcc, err := n.stateRPC.GetAccountByAddress(ctx, &proto.AccountByAddressReq{Address: txn.From})
 	if err != nil {
 		n.log.Error("could not get account by address", "err", err)
 		http.Error(w, "could not get account by address", http.StatusBadRequest)
@@ -50,7 +53,7 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 
 	protoTxn := transaction.ToProtoTx(txn)
 	pld := &proto.CreateMempoolRequest{Transaction: protoTxn}
-	createResp, err := n.mempoolRPC.CreateMempool(r.Context(), pld)
+	createResp, err := n.mempoolRPC.CreateMempool(ctx, pld)
 	if err != nil {
 		n.log.Error("could not push transaction to mempool", "txHash", txn.Hash, "err", err)
 		http.Error(w, "could not create transaction", http.StatusBadRequest)
@@ -64,8 +67,10 @@ func (n *Node) createTransaction(w http.ResponseWriter, r *http.Request) {
 
 func (n *Node) nodeStatus(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 
-	lb, err := n.stateRPC.GetLatestBlock(r.Context(), &proto.LastBlockReq{})
+	lb, err := n.stateRPC.GetLatestBlock(ctx, &proto.LastBlockReq{})
 	if err != nil {
 		n.log.Error("could not get latest block", "err", err)
 		http.Error(w, "could not get latest block", http.StatusBadRequest)
@@ -73,6 +78,6 @@ func (n *Node) nodeStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := httpjsonres.JSON(w, http.StatusOK, lb); err != nil {
-		n.log.Error("failed responding to get latest block from stet service", "err", err)
+		n.log.Error("failed responding to get latest block from state service", "err", err)
 	}
 }

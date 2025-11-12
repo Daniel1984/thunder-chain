@@ -1,72 +1,65 @@
 package main
 
 import (
-	_ "embed"
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/middleware"
-	"com.perkunas/internal/models/peernode"
 	"com.perkunas/internal/server"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Node struct {
-	proto.UnimplementedNodeServiceServer
-	log        *slog.Logger
-	apiPort    string
-	mempoolAPI string
-	stateAPI   string
-	peerNodes  []peernode.Node
-	mempoolRPC proto.MempoolServiceClient
-	stateRPC   proto.StateServiceClient
-}
-
 func main() {
-	n := &Node{log: logger.WithJSONFormat().With(slog.String("scope", "node"))}
+	n := &Node{
+		log: logger.WithJSONFormat().With(slog.String("scope", "node")),
+	}
+
 	flag.StringVar(&n.mempoolAPI, "mempoolapi", os.Getenv("MEMPOOL_API"), "mempool api endpoint")
 	flag.StringVar(&n.stateAPI, "stateapi", os.Getenv("STATE_API"), "state api endpoint")
+	flag.StringVar(&n.bootstrapAPI, "bootstrapapi", os.Getenv("BOOTSTRAP_API"), "bootstrap node api endpoint")
 	flag.StringVar(&n.apiPort, "apiport", os.Getenv("API_PORT"), "node api port")
+	flag.BoolVar(&n.participateInPeerDiscovery, "peer-discovery", os.Getenv("PEER_DISCOVERY") == "true", "participate in peer discovery")
+	flag.Parse()
 
-	// initiate mempool rpc client
-	memPoolConn, client, err := mempoolRpcClient(n.mempoolAPI)
+	_, mempoolClient, err := mempoolRpcClient(n.mempoolAPI)
 	if err != nil {
-		n.log.Error("grpc did not connect", "err", err)
+		n.log.Error("mempool grpc connection failed", "err", err)
 		os.Exit(1)
 	}
-	defer memPoolConn.Close()
-	n.mempoolRPC = client
+	n.mempoolRPC = mempoolClient
 
-	// initiate state rpc client
-	stateConn, stateClient, err := stateRPCClient(n.stateAPI)
+	_, stateClient, err := stateRPCClient(n.stateAPI)
 	if err != nil {
-		n.log.Error("state grpc did not connect", "err", err)
+		n.log.Error("state grpc connection failed", "err", err)
 		os.Exit(1)
 	}
-	defer stateConn.Close()
 	n.stateRPC = stateClient
 
-	// start http server
-	srv := httpServer(n.getRouter(), n.apiPort)
-	n.log.Info("api server started", "port exposed", n.apiPort)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if n.participateInPeerDiscovery {
+		n.RegisterAsPeer(ctx)
+		go n.StartHeartbeat(ctx)
+	}
+
+	srv := server.
+		Get().
+		WithAddr(fmt.Sprintf(":%s", n.apiPort)).
+		WithMiddleware(middleware.Chain(middleware.LogReq)).
+		WithRouter(n.getRouter())
+
+	n.log.Info("node starting", "port", n.apiPort)
 	if err := srv.Start(); err != nil {
 		n.log.Error("failed starting server", "err", err)
 		os.Exit(1)
 	}
-}
-
-func httpServer(mux *http.ServeMux, port string) *server.Server {
-	return server.
-		Get().
-		WithAddr(fmt.Sprintf(":%s", port)).
-		WithMiddleware(middleware.Chain(middleware.LogReq)).
-		WithRouter(mux)
 }
 
 func mempoolRpcClient(apiUrl string) (*grpc.ClientConn, proto.MempoolServiceClient, error) {
