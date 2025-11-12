@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS peers (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	ip TEXT NOT NULL,
+	port TEXT NOT NULL,
+	is_bootstrap INTEGER NOT NULL DEFAULT 0,
+	is_active INTEGER NOT NULL DEFAULT 1,
+	last_seen INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+	UNIQUE(ip, port)
+);
