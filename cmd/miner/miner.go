@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"strings"
 	"time"
@@ -29,12 +30,12 @@ type MiningCandidate struct {
 
 func (m *Miner) getCurrentDifficulty() uint64 {
 	// Implement logic to get current difficulty
-	return 2
+	return 6
 }
 
 func (m *Miner) Start(ctx context.Context) error {
 	for {
-		time.Sleep(20 * time.Second)
+		time.Sleep(1 * time.Second)
 		select {
 		case <-ctx.Done():
 			return nil
@@ -49,7 +50,7 @@ func (m *Miner) Start(ctx context.Context) error {
 
 			txs := pendTxs.GetTransactions()
 			if len(txs) == 0 {
-				m.log.Info("no transactions in mempool")
+				// m.log.Info("no transactions in mempool")
 				continue
 			}
 
@@ -117,6 +118,7 @@ func (m *Miner) mineBlock(ctx context.Context, mc *MiningCandidate) (*block.Bloc
 			block.Hash = hash
 
 			if isHashValid(block.Hash, m.getCurrentDifficulty()) {
+				log.Printf("hash:%s - nonce:%d", block.Hash, nonce)
 				return block, nil
 			}
 		}

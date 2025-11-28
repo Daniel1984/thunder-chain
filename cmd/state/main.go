@@ -32,21 +32,21 @@ func main() {
 	log := logger.WithJSONFormat().With(slog.String("scope", "state-svc"))
 
 	flag.StringVar(&dbPath, "db-path", os.Getenv("DB_PATH"), "state db absolute path")
-	db, err := dbConnect(ctx, dbPath, stateSql)
+	stateDb, err := db.Connect(ctx, dbPath, stateSql)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed connecting to %s", dbPath), "err", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer stateDb.Close()
 
 	s := &State{
-		db:                 db,
+		db:                 stateDb,
 		log:                log,
-		accModel:           &account.Model{DB: db},
-		balanceChangeModel: &balancechange.Model{DB: db},
-		blockModel:         &block.Model{DB: db},
-		genesisBlockModel:  &genesisblock.Model{DB: db},
-		receiptModel:       &receipt.Model{DB: db},
+		accModel:           &account.Model{DB: stateDb},
+		balanceChangeModel: &balancechange.Model{DB: stateDb},
+		blockModel:         &block.Model{DB: stateDb},
+		genesisBlockModel:  &genesisblock.Model{DB: stateDb},
+		receiptModel:       &receipt.Model{DB: stateDb},
 	}
 
 	if err := s.ensureGenesisBlock(ctx); err != nil {
@@ -59,17 +59,4 @@ func main() {
 		log.Error("failed to start grpc server", "err", err)
 		os.Exit(1)
 	}
-}
-
-func dbConnect(ctx context.Context, dbName, sql string) (*db.DB, error) {
-	db, err := db.NewDB(ctx, dbName)
-	if err != nil {
-		return nil, fmt.Errorf("failed connecting to %s db %w", dbName, err)
-	}
-
-	if _, err := db.WriteDB.ExecContext(ctx, sql); err != nil {
-		return nil, fmt.Errorf("failed migrating %s db %w", dbName, err)
-	}
-
-	return db, nil
 }

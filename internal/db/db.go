@@ -72,3 +72,16 @@ func NewDB(ctx context.Context, dbPath string) (*DB, error) {
 
 	return db, nil
 }
+
+func Connect(ctx context.Context, dbName, sql string) (*DB, error) {
+	db, err := NewDB(ctx, dbName)
+	if err != nil {
+		return nil, fmt.Errorf("failed connecting to %s db %w", dbName, err)
+	}
+
+	if _, err := db.WriteDB.ExecContext(ctx, sql); err != nil {
+		return nil, fmt.Errorf("failed migrating %s db %w", dbName, err)
+	}
+
+	return db, nil
+}
