@@ -35,12 +35,10 @@ func (m *Model) MarkInactive(ctx context.Context) (sql.Result, error) {
 
 func (m *Model) Insert(ctx context.Context, p Peer) error {
 	query := `
-		INSERT INTO peers (ip, port, is_active, is_bootstrap, last_seen)
+		INSERT OR REPLACE INTO peers
+		(ip, port, is_active, is_bootstrap, last_seen)
 		VALUES (:ip, :port, :is_active, :is_bootstrap, :last_seen)
-		ON CONFLICT(ip, port) DO UPDATE SET
-		is_active = :is_active,
-		last_seen = :last_seen
-	`
+  `
 
 	_, err := m.DB.WriteDB.NamedExecContext(ctx, query, p)
 	return err
@@ -54,7 +52,7 @@ func (m *Model) QueryActive(ctx context.Context) ([]Peer, error) {
 		AND is_bootstrap = 0
 	`
 
-	var res []Peer
+	res := []Peer{}
 	err := m.DB.ReadDB.SelectContext(ctx, &res, query)
 	return res, err
 }
