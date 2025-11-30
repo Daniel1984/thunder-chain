@@ -9,6 +9,7 @@ import (
 
 	"com.perkunas/internal/logger"
 	"com.perkunas/internal/middleware"
+	"com.perkunas/internal/models/peernode"
 	"com.perkunas/internal/server"
 	"com.perkunas/proto"
 	"google.golang.org/grpc"
@@ -17,7 +18,8 @@ import (
 
 func main() {
 	n := &Node{
-		log: logger.WithJSONFormat().With(slog.String("scope", "node")),
+		log:       logger.WithJSONFormat().With(slog.String("scope", "node")),
+		peerNodes: []peernode.Peer{},
 	}
 
 	flag.StringVar(&n.mempoolAPI, "mempoolapi", os.Getenv("MEMPOOL_API"), "mempool api endpoint")
@@ -41,6 +43,14 @@ func main() {
 	}
 	n.stateRPC = stateClient
 
+	// get IP upon starting program to avoid multiple lookups later
+	locIP, err := GetOutboundIP()
+	if err != nil {
+		n.log.Error("failed to get outbound ip", "err", err)
+		os.Exit(1)
+	}
+	n.outboundIP = locIP
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -48,6 +58,9 @@ func main() {
 		n.RegisterAsPeer(ctx)
 		go n.StartHeartbeat(ctx)
 	}
+
+	n.FetchPeers(ctx)
+	go n.StartPeerRefresher(ctx)
 
 	srv := server.
 		Get().
