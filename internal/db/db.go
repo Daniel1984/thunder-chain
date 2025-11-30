@@ -40,26 +40,25 @@ func (db *DB) Ping(ctx context.Context) error {
 }
 
 func NewDB(ctx context.Context, dbPath string) (*DB, error) {
-	connectionUrlParams := make(url.Values)
-	connectionUrlParams.Add("_txlock", "immediate")
-	connectionUrlParams.Add("_journal_mode", "WAL")
-	connectionUrlParams.Add("_busy_timeout", "5000")
-	connectionUrlParams.Add("_synchronous", "NORMAL")
-	connectionUrlParams.Add("_cache_size", "1000000000")
-	connectionUrlParams.Add("_foreign_keys", "true")
-	connectionUrl := fmt.Sprintf("file:%s?%s", dbPath, connectionUrlParams.Encode())
+	params := url.Values{}
+	params.Add("_pragma", "journal_mode=WAL")
+	params.Add("_pragma", "busy_timeout=10000")
+	params.Add("_pragma", "synchronous=NORMAL")
+	params.Add("_pragma", "foreign_keys=ON")
 
-	writeDB, err := sqlx.Open("sqlite", connectionUrl)
+	connectionURL := fmt.Sprintf("file:%s?%s", dbPath, params.Encode())
+
+	writeDB, err := sqlx.Open("sqlite", connectionURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish write db connection %w", err)
+		return nil, fmt.Errorf("failed to create write db: %w", err)
 	}
 	writeDB.SetMaxOpenConns(1)
 
-	readDB, err := sqlx.Open("sqlite", connectionUrl)
+	readDB, err := sqlx.Open("sqlite", connectionURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish read db connection %w", err)
+		return nil, fmt.Errorf("failed to create read db: %w", err)
 	}
-	readDB.SetMaxOpenConns(max(4, runtime.NumCPU()))
+	readDB.SetMaxOpenConns(max(2, runtime.NumCPU()-1))
 
 	db := &DB{
 		WriteDB: writeDB,
