@@ -23,16 +23,10 @@ func (bn *BootstrapNode) cleanupInactivePeers(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case t := <-ticker.C:
-			fmt.Println("running periodic task at", t.Format(time.RFC3339))
-			res, err := bn.peerModel.MarkInactive(ctx)
-			if err != nil {
+		case <-ticker.C:
+			fmt.Println("running periodic cleanup task")
+			if _, err := bn.peerModel.MarkInactive(ctx); err != nil {
 				bn.log.Error("failed to cleanup inactive peers", "err", err)
-				return
-			}
-
-			if rowsAffected, err := res.RowsAffected(); err == nil && rowsAffected > 0 {
-				bn.log.Debug("marked peers as inactive", "count", rowsAffected)
 			}
 		}
 	}

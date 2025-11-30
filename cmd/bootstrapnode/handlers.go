@@ -3,18 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"com.perkunas/internal/httpjsonres"
 	"com.perkunas/internal/models/peernode"
 )
-
-type PeersResponse struct {
-	Peers []peernode.Peer `json:"peers"`
-}
 
 func (bn *BootstrapNode) reportAsPeer(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -33,7 +27,6 @@ func (bn *BootstrapNode) reportAsPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pld.IP = getClientIP(r)
 	pld.IsActive = true
 	pld.LastSeen = time.Now().Unix()
 
@@ -61,8 +54,7 @@ func (bn *BootstrapNode) getPeers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := PeersResponse{Peers: peers}
-	if err := httpjsonres.JSON(w, http.StatusOK, res); err != nil {
+	if err := httpjsonres.JSON(w, http.StatusOK, peers); err != nil {
 		bn.log.Error("failed responding to get peers request", "err", err)
 	}
 }
@@ -87,24 +79,4 @@ func (bn *BootstrapNode) healthCheck(w http.ResponseWriter, r *http.Request) {
 	if err := httpjsonres.JSON(w, http.StatusOK, res); err != nil {
 		bn.log.Error("failed responding to health check request", "err", err)
 	}
-}
-
-func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header first (for proxies)
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		ips := strings.Split(xff, ",")
-		return strings.TrimSpace(ips[0])
-	}
-
-	// Check X-Real-IP header
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
-	}
-
-	// Fall back to RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return ip
 }
